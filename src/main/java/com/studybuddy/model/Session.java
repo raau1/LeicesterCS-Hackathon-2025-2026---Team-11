@@ -1,4 +1,4 @@
-package com.studybuddy.dto;
+package com.studybuddy.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -6,13 +6,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SessionResponse {
+public class Session {
     private String id;
     private String title;
     private String module;
@@ -26,10 +27,13 @@ public class SessionResponse {
     private String creatorId;
     private String creatorName;
     private Boolean startNow;
-    private List<String> participants;
-    private List<String> joinRequests;
+
+    @Builder.Default
+    private List<String> participants = new ArrayList<>();
+
+    @Builder.Default
+    private List<String> joinRequests = new ArrayList<>();
+
     private LocalDateTime createdAt;
     private LocalDateTime expiresAt;
-    private Integer participantCount;
-    private Integer spotsLeft;
 }
