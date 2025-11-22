@@ -267,17 +267,26 @@
                         </div>
 
                         <div class="form-section">
-                            <h3>Schedule & Location</h3>
+                            <h3>Schedule</h3>
 
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="sessionDate">Date</label>
-                                    <input type="date" id="sessionDate" name="date" required>
-                                </div>
+                            <div class="form-group">
+                                <label class="checkbox-label start-now-label">
+                                    <input type="checkbox" id="startNow" name="startNow">
+                                    <strong>Start Now</strong> - Open the chat room immediately
+                                </label>
+                            </div>
 
-                                <div class="form-group">
-                                    <label for="sessionTime">Time</label>
-                                    <input type="time" id="sessionTime" name="time" required>
+                            <div id="scheduleFields">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="sessionDate">Date</label>
+                                        <input type="date" id="sessionDate" name="date">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="sessionTime">Time</label>
+                                        <input type="time" id="sessionTime" name="time">
+                                    </div>
                                 </div>
                             </div>
 
@@ -290,12 +299,6 @@
                                     <option value="120">2 hours</option>
                                     <option value="180">3 hours</option>
                                 </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="sessionLocation">Location</label>
-                                <input type="text" id="sessionLocation" name="location" required
-                                       placeholder="e.g., Library Room 204, Online (Zoom)">
                             </div>
                         </div>
 
@@ -413,6 +416,69 @@
             </div>
         </section>
 
+        <!-- Session View/Chat Page -->
+        <section class="page" id="sessionViewPage">
+            <div class="container">
+                <div class="session-view-container">
+                    <div class="session-details-panel">
+                        <button class="btn btn-secondary btn-back" data-page="browse">← Back to Browse</button>
+
+                        <div class="session-view-header">
+                            <h2 id="viewSessionTitle">Loading...</h2>
+                            <span class="live-badge hidden" id="viewSessionLive">LIVE</span>
+                        </div>
+
+                        <div class="session-view-info">
+                            <div class="info-row">
+                                <span class="info-label">Module:</span>
+                                <span id="viewSessionModule">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Date & Time:</span>
+                                <span id="viewSessionDateTime">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Duration:</span>
+                                <span id="viewSessionDuration">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Participants:</span>
+                                <span id="viewSessionParticipants">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Host:</span>
+                                <span id="viewSessionHost">-</span>
+                            </div>
+                        </div>
+
+                        <div class="session-description" id="viewSessionDescription">
+                        </div>
+
+                        <div class="session-preferences" id="viewSessionPreferences">
+                        </div>
+                    </div>
+
+                    <div class="chat-panel" id="chatPanel">
+                        <div class="chat-header">
+                            <h3>Session Chat</h3>
+                            <span class="chat-status" id="chatStatus">Connected</span>
+                        </div>
+
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="chat-empty">
+                                <p>No messages yet. Start the conversation!</p>
+                            </div>
+                        </div>
+
+                        <form class="chat-input-form" id="chatForm">
+                            <input type="text" id="chatInput" placeholder="Type a message..." autocomplete="off">
+                            <button type="submit" class="btn btn-primary">Send</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+
     </main>
 
     <!-- Toast Notifications -->
@@ -427,6 +493,7 @@
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/sessions.js"></script>
+    <script src="js/chat.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

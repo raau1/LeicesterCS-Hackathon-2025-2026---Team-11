@@ -15,7 +15,6 @@ public class SessionResponse {
     private LocalDate date;
     private LocalTime time;
     private Integer duration;
-    private String location;
     private Integer maxParticipants;
     private List<String> preferences;
     private String description;
@@ -24,4 +23,6 @@ public class SessionResponse {
     private Integer participantCount;
     private Integer spotsLeft;
     private String status;
+    private List<String> participants;
+    private Boolean isLive;
 }

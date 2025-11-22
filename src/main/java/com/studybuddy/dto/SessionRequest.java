@@ -19,21 +19,20 @@ public class SessionRequest {
     @NotBlank
     private String year;
 
-    @NotNull
+    // These can be null if startNow is true
     private LocalDate date;
 
-    @NotNull
     private LocalTime time;
 
     @NotNull
     private Integer duration;
-
-    @NotBlank
-    private String location;
 
     private Integer maxParticipants = 4;
 
     private List<String> preferences;
 
     private String description;
+
+    // Whether to start the session immediately
+    private Boolean startNow = false;
 }

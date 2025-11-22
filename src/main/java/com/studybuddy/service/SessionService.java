@@ -27,13 +27,23 @@ public class SessionService {
             sessionData.put("title", request.getTitle());
             sessionData.put("module", request.getModule());
             sessionData.put("year", request.getYear());
-            sessionData.put("date", request.getDate().toString());
-            sessionData.put("time", request.getTime().toString());
+
+            // Handle startNow - use current date/time if starting immediately
+            boolean isLive = request.getStartNow() != null && request.getStartNow();
+            if (isLive) {
+                java.time.LocalDateTime now = java.time.LocalDateTime.now();
+                sessionData.put("date", now.toLocalDate().toString());
+                sessionData.put("time", now.toLocalTime().toString());
+            } else {
+                sessionData.put("date", request.getDate().toString());
+                sessionData.put("time", request.getTime().toString());
+            }
+
             sessionData.put("duration", request.getDuration());
-            sessionData.put("location", request.getLocation());
             sessionData.put("maxParticipants", request.getMaxParticipants());
             sessionData.put("preferences", request.getPreferences() != null ? request.getPreferences() : new ArrayList<>());
             sessionData.put("description", request.getDescription());
+            sessionData.put("isLive", isLive);
             sessionData.put("creatorId", creatorUid);
             sessionData.put("creatorName", creatorName);
             sessionData.put("participants", Arrays.asList(creatorUid));
@@ -219,7 +229,6 @@ public class SessionService {
         response.setDate(java.time.LocalDate.parse((String) data.get("date")));
         response.setTime(java.time.LocalTime.parse((String) data.get("time")));
         response.setDuration(((Long) data.get("duration")).intValue());
-        response.setLocation((String) data.get("location"));
         response.setMaxParticipants(((Long) data.get("maxParticipants")).intValue());
         response.setPreferences((List<String>) data.get("preferences"));
         response.setDescription((String) data.get("description"));
@@ -231,6 +240,11 @@ public class SessionService {
         response.setParticipantCount(participantCount);
         response.setSpotsLeft(response.getMaxParticipants() - participantCount);
         response.setStatus((String) data.get("status"));
+        response.setParticipants(participants);
+
+        // Handle isLive field
+        Boolean isLive = (Boolean) data.get("isLive");
+        response.setIsLive(isLive != null ? isLive : false);
 
         return response;
     }

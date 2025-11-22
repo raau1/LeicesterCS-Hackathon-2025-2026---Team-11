@@ -111,6 +111,22 @@ const App = {
                     dateInput.min = today;
                     dateInput.value = today;
                 }
+
+                // Set up startNow toggle
+                const startNowCheckbox = document.getElementById('startNow');
+                const scheduleFields = document.getElementById('scheduleFields');
+                if (startNowCheckbox && scheduleFields) {
+                    startNowCheckbox.addEventListener('change', (e) => {
+                        if (e.target.checked) {
+                            scheduleFields.style.display = 'none';
+                        } else {
+                            scheduleFields.style.display = 'block';
+                        }
+                    });
+                    // Reset on page load
+                    startNowCheckbox.checked = false;
+                    scheduleFields.style.display = 'block';
+                }
                 break;
         }
     },
@@ -180,17 +196,28 @@ const App = {
                     preferences.push(cb.value);
                 });
 
+                // Check if starting now
+                const startNow = document.getElementById('startNow').checked;
+
+                // Validate date/time if not starting now
+                if (!startNow) {
+                    if (!formData.get('date') || !formData.get('time')) {
+                        errorEl.textContent = 'Please select date and time or check "Start Now"';
+                        return;
+                    }
+                }
+
                 const sessionData = {
                     title: formData.get('title'),
                     module: formData.get('module'),
                     year: formData.get('year'),
-                    date: formData.get('date'),
-                    time: formData.get('time'),
+                    date: startNow ? null : formData.get('date'),
+                    time: startNow ? null : formData.get('time'),
                     duration: parseInt(formData.get('duration')),
-                    location: formData.get('location'),
                     maxParticipants: parseInt(formData.get('maxParticipants')),
                     preferences: preferences,
-                    description: formData.get('description')
+                    description: formData.get('description'),
+                    startNow: startNow
                 };
 
                 try {
@@ -220,6 +247,12 @@ const App = {
             if (e.target.classList.contains('join-btn')) {
                 const sessionId = e.target.getAttribute('data-session-id');
                 await this.handleJoinSession(sessionId);
+            }
+
+            // View session buttons
+            if (e.target.classList.contains('view-btn')) {
+                const sessionId = e.target.getAttribute('data-session-id');
+                await Sessions.viewSession(sessionId);
             }
         });
 
