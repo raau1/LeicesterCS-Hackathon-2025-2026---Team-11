@@ -1,4 +1,4 @@
-package com.studybuddy.dto;
+package com.studybuddy.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,11 +11,13 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class MessageResponse {
+public class Rating {
     private String id;
+    private String userId;
+    private String raterId;
+    private String raterName;
+    private Integer score;
+    private String review;
     private String sessionId;
-    private String senderId;
-    private String senderName;
-    private String content;
-    private LocalDateTime timestamp;
+    private LocalDateTime createdAt;
 }

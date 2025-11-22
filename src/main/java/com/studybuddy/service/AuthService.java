@@ -6,9 +6,12 @@ import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.UserRecord;
 import com.studybuddy.dto.AuthResponse;
 import com.studybuddy.dto.SignupRequest;
+import com.studybuddy.exception.BadRequestException;
+import com.studybuddy.exception.ResourceNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -38,19 +41,24 @@ public class AuthService {
             userData.put("email", request.getEmail());
             userData.put("year", request.getYear());
             userData.put("modules", new ArrayList<String>());
-            userData.put("createdAt", System.currentTimeMillis());
-            userData.put("updatedAt", System.currentTimeMillis());
+            userData.put("createdAt", LocalDateTime.now().toString());
+            userData.put("updatedAt", LocalDateTime.now().toString());
 
             firestore.collection("users").document(userRecord.getUid()).set(userData).get();
 
             // Generate custom token for the user
             String customToken = firebaseAuth.createCustomToken(userRecord.getUid());
 
-            return new AuthResponse(customToken, userRecord.getUid(), request.getName(), request.getEmail());
+            return AuthResponse.builder()
+                    .token(customToken)
+                    .userId(userRecord.getUid())
+                    .name(request.getName())
+                    .email(request.getEmail())
+                    .build();
         } catch (FirebaseAuthException e) {
-            throw new RuntimeException(getFirebaseErrorMessage(e));
+            throw new BadRequestException(getFirebaseErrorMessage(e));
         } catch (Exception e) {
-            throw new RuntimeException("Error creating user: " + e.getMessage());
+            throw new BadRequestException("Error creating user: " + e.getMessage());
         }
     }
 
@@ -58,7 +66,7 @@ public class AuthService {
         try {
             return firebaseAuth.getUser(uid);
         } catch (FirebaseAuthException e) {
-            throw new RuntimeException("User not found");
+            throw new ResourceNotFoundException("User not found");
         }
     }
 

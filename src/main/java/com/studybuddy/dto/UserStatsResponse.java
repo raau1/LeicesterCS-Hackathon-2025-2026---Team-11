@@ -5,16 +5,13 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserResponse {
-    private String id;
-    private String name;
-    private String email;
-    private String year;
-    private List<String> modules;
+public class UserStatsResponse {
+    private Integer sessionsCreated;
+    private Integer sessionsJoined;
+    private Double averageRating;
+    private Integer totalRatings;
 }

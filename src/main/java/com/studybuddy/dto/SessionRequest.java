@@ -1,38 +1,36 @@
 package com.studybuddy.dto;
 
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Data;
-
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.util.List;
+import lombok.NoArgsConstructor;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class SessionRequest {
-    @NotBlank
+    @NotBlank(message = "Title is required")
     private String title;
 
-    @NotBlank
+    @NotBlank(message = "Module is required")
     private String module;
 
-    @NotBlank
+    @NotBlank(message = "Year is required")
     private String year;
 
-    // These can be null if startNow is true
-    private LocalDate date;
+    private String date;
+    private String time;
 
-    private LocalTime time;
-
-    @NotNull
+    @Min(value = 1, message = "Duration must be at least 1 minute")
     private Integer duration;
 
-    private Integer maxParticipants = 4;
+    @NotNull(message = "Max participants is required")
+    @Min(value = 2, message = "At least 2 participants required")
+    private Integer maxParticipants;
 
-    private List<String> preferences;
-
+    private String preferences;
     private String description;
-
-    // Whether to start the session immediately
-    private Boolean startNow = false;
+    private Boolean startNow;
 }
