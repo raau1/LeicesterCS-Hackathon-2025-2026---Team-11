@@ -234,7 +234,7 @@ const App = {
                     time: startNow ? null : formData.get('time'),
                     duration: parseInt(formData.get('duration')),
                     maxParticipants: parseInt(formData.get('maxParticipants')),
-                    preferences: preferences,
+                    preferences: preferences.join(', '),
                     description: formData.get('description'),
                     startNow: startNow
                 };
