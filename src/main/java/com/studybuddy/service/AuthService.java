@@ -28,6 +28,31 @@ public class AuthService {
     @Autowired
     private Firestore firestore;
 
+    // Create user profile in Firestore (user already exists in Firebase Auth)
+    public AuthResponse createUserProfile(String uid, SignupRequest request) {
+        try {
+            // Create user document in Firestore
+            Map<String, Object> userData = new HashMap<>();
+            userData.put("name", request.getName());
+            userData.put("email", request.getEmail());
+            userData.put("year", request.getYear());
+            userData.put("modules", new ArrayList<String>());
+            userData.put("createdAt", LocalDateTime.now().toString());
+            userData.put("updatedAt", LocalDateTime.now().toString());
+
+            firestore.collection("users").document(uid).set(userData).get();
+
+            return AuthResponse.builder()
+                    .userId(uid)
+                    .name(request.getName())
+                    .email(request.getEmail())
+                    .build();
+        } catch (Exception e) {
+            throw new BadRequestException("Error creating user profile: " + e.getMessage());
+        }
+    }
+
+    // Legacy signup method (creates both Firebase Auth and Firestore user)
     public AuthResponse signup(SignupRequest request) {
         try {
             // Create user in Firebase Auth

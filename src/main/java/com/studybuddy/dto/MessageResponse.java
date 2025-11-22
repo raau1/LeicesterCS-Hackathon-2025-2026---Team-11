@@ -5,8 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 @Data
 @Builder
 @NoArgsConstructor
@@ -17,5 +15,5 @@ public class MessageResponse {
     private String senderId;
     private String senderName;
     private String content;
-    private LocalDateTime timestamp;
+    private Long timestamp;
 }

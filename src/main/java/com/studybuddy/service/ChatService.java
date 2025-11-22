@@ -145,15 +145,7 @@ public class ChatService {
         response.setSenderId((String) data.get("senderId"));
         response.setSenderName((String) data.get("senderName"));
         response.setContent((String) data.get("content"));
-
-        // Convert Long timestamp to LocalDateTime
-        Long timestamp = (Long) data.get("timestamp");
-        if (timestamp != null) {
-            response.setTimestamp(java.time.LocalDateTime.ofInstant(
-                java.time.Instant.ofEpochMilli(timestamp),
-                java.time.ZoneId.systemDefault()
-            ));
-        }
+        response.setTimestamp((Long) data.get("timestamp"));
 
         return response;
     }

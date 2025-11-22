@@ -103,10 +103,20 @@ const Auth = {
             API.setToken(token);
 
             // Fetch profile from backend
-            const profile = await API.get('/users/me');
-            this.currentUser = profile;
-            this.updateUI(this.currentUser);
+            try {
+                const profile = await API.get('/users/me');
+                this.currentUser = profile;
+            } catch (profileError) {
+                // User exists in Firebase but not in Firestore - use Firebase data
+                console.warn('User profile not found in Firestore, using Firebase data');
+                this.currentUser = {
+                    id: user.uid,
+                    name: user.displayName || user.email,
+                    email: user.email
+                };
+            }
 
+            this.updateUI(this.currentUser);
             App.showToast('Welcome back!', 'success');
             App.navigateTo('browse');
 

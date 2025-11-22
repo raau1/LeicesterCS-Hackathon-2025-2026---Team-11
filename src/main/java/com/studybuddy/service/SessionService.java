@@ -16,11 +16,31 @@ public class SessionService {
     @Autowired
     private Firestore firestore;
 
+    @Autowired
+    private com.google.firebase.auth.FirebaseAuth firebaseAuth;
+
     public SessionResponse createSession(SessionRequest request, String creatorUid) {
         try {
-            // Get creator info
+            // Get creator info from Firestore first, then fallback to Firebase Auth
             DocumentSnapshot userDoc = firestore.collection("users").document(creatorUid).get().get();
-            String creatorName = userDoc.getString("name");
+            String creatorName = null;
+
+            if (userDoc.exists()) {
+                creatorName = userDoc.getString("name");
+            }
+
+            // Fallback to Firebase Auth displayName if Firestore doesn't have the name
+            if (creatorName == null || creatorName.isEmpty()) {
+                try {
+                    com.google.firebase.auth.UserRecord userRecord = firebaseAuth.getUser(creatorUid);
+                    creatorName = userRecord.getDisplayName();
+                    if (creatorName == null || creatorName.isEmpty()) {
+                        creatorName = userRecord.getEmail();
+                    }
+                } catch (Exception e) {
+                    creatorName = "Unknown User";
+                }
+            }
 
             // Create session document
             Map<String, Object> sessionData = new HashMap<>();
@@ -79,10 +99,24 @@ public class SessionService {
             ApiFuture<QuerySnapshot> future = query.get();
             List<QueryDocumentSnapshot> documents = future.get().getDocuments();
 
+            System.out.println("DEBUG: Found " + documents.size() + " sessions with status=open");
+
             return documents.stream()
-                    .map(doc -> mapToSessionResponse(doc.getId(), doc.getData()))
+                    .map(doc -> {
+                        try {
+                            System.out.println("DEBUG: Mapping session " + doc.getId());
+                            return mapToSessionResponse(doc.getId(), doc.getData());
+                        } catch (Exception e) {
+                            System.err.println("DEBUG ERROR: Failed to map session " + doc.getId() + ": " + e.getMessage());
+                            e.printStackTrace();
+                            return null;
+                        }
+                    })
+                    .filter(s -> s != null)
                     .collect(Collectors.toList());
         } catch (Exception e) {
+            System.err.println("DEBUG ERROR: getAllSessions failed: " + e.getMessage());
+            e.printStackTrace();
             throw new RuntimeException("Error getting sessions: " + e.getMessage());
         }
     }
@@ -141,7 +175,7 @@ public class SessionService {
             Long maxParticipants = doc.getLong("maxParticipants");
 
             if (participants != null && participants.contains(userUid)) {
-                throw new RuntimeException("Already a participant");
+                throw new RuntimeException("You are already a participant in this session");
             }
 
             if (requests != null && requests.contains(userUid)) {
@@ -241,10 +275,30 @@ public class SessionService {
         response.setYear((String) data.get("year"));
         response.setDate((String) data.get("date"));
         response.setTime((String) data.get("time"));
-        response.setDuration(((Long) data.get("duration")).intValue());
-        response.setMaxParticipants(((Long) data.get("maxParticipants")).intValue());
-        response.setPreferences((String) data.get("preferences"));
+        Long duration = (Long) data.get("duration");
+        response.setDuration(duration != null ? duration.intValue() : 0);
+
+        Long maxParticipants = (Long) data.get("maxParticipants");
+        response.setMaxParticipants(maxParticipants != null ? maxParticipants.intValue() : 1);
+
+        // Convert preferences to list (handle both String and ArrayList from Firestore)
+        Object prefsData = data.get("preferences");
+        if (prefsData instanceof String) {
+            String prefsString = (String) prefsData;
+            if (!prefsString.isEmpty()) {
+                response.setPreferences(Arrays.asList(prefsString.split(",")));
+            } else {
+                response.setPreferences(new ArrayList<>());
+            }
+        } else if (prefsData instanceof List) {
+            response.setPreferences((List<String>) prefsData);
+        } else {
+            response.setPreferences(new ArrayList<>());
+        }
+
         response.setDescription((String) data.get("description"));
+        response.setIsLive(data.get("isLive") != null ? (Boolean) data.get("isLive") : false);
+        response.setStatus((String) data.get("status"));
         response.setCreatorId((String) data.get("creatorId"));
         response.setCreatorName((String) data.get("creatorName"));
 

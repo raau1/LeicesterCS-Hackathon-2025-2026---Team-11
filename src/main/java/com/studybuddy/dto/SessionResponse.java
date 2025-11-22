@@ -21,8 +21,10 @@ public class SessionResponse {
     private String time;
     private Integer duration;
     private Integer maxParticipants;
-    private String preferences;
+    private List<String> preferences;
     private String description;
+    private Boolean isLive;
+    private String status;
     private String creatorId;
     private String creatorName;
     private Boolean startNow;

@@ -17,9 +17,17 @@ const Chat = {
 
         // Set up form handler - remove any existing handler first
         const chatForm = document.getElementById('chatForm');
-        const newForm = chatForm.cloneNode(true);
-        chatForm.parentNode.replaceChild(newForm, chatForm);
-        newForm.onsubmit = (e) => this.handleSendMessage(e);
+        if (chatForm) {
+            // Remove old handler by replacing with clone
+            const newForm = chatForm.cloneNode(true);
+            chatForm.parentNode.replaceChild(newForm, chatForm);
+
+            // Use addEventListener instead of onsubmit for better control
+            newForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleSendMessage(e);
+            });
+        }
 
         // Load existing messages
         await this.loadMessages();
