@@ -1,10 +1,9 @@
 package com.studybuddy.service;
 
+import com.google.cloud.firestore.DocumentSnapshot;
+import com.google.cloud.firestore.Firestore;
+import com.google.cloud.firestore.QuerySnapshot;
 import com.studybuddy.dto.UserResponse;
-import com.studybuddy.model.User;
-import com.studybuddy.repository.RatingRepository;
-import com.studybuddy.repository.SessionRepository;
-import com.studybuddy.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -16,48 +15,75 @@ import java.util.Map;
 public class UserService {
 
     @Autowired
-    private UserRepository userRepository;
+    private Firestore firestore;
 
-    @Autowired
-    private SessionRepository sessionRepository;
-
-    @Autowired
-    private RatingRepository ratingRepository;
-
-    public UserResponse getUserProfile(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        return UserResponse.fromEntity(user);
+    public UserResponse getUserProfile(String uid) {
+        try {
+            DocumentSnapshot doc = firestore.collection("users").document(uid).get().get();
+            if (!doc.exists()) {
+                throw new RuntimeException("User not found");
+            }
+            return mapToUserResponse(uid, doc.getData());
+        } catch (Exception e) {
+            throw new RuntimeException("Error getting user: " + e.getMessage());
+        }
     }
 
-    public UserResponse getUserById(Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        return UserResponse.fromEntity(user);
+    public Map<String, Object> getUserStats(String uid) {
+        try {
+            Map<String, Object> stats = new HashMap<>();
+
+            // Count sessions created
+            QuerySnapshot createdSessions = firestore.collection("sessions")
+                    .whereEqualTo("creatorId", uid)
+                    .get().get();
+            stats.put("sessionsCreated", createdSessions.size());
+
+            // Count sessions joined
+            QuerySnapshot joinedSessions = firestore.collection("sessions")
+                    .whereArrayContains("participants", uid)
+                    .get().get();
+            stats.put("sessionsJoined", joinedSessions.size());
+
+            // Get ratings
+            QuerySnapshot ratings = firestore.collection("ratings")
+                    .whereEqualTo("toUserId", uid)
+                    .get().get();
+
+            if (ratings.isEmpty()) {
+                stats.put("averageRating", 0.0);
+                stats.put("ratingCount", 0);
+            } else {
+                double sum = ratings.getDocuments().stream()
+                        .mapToLong(doc -> doc.getLong("score"))
+                        .sum();
+                stats.put("averageRating", sum / ratings.size());
+                stats.put("ratingCount", ratings.size());
+            }
+
+            return stats;
+        } catch (Exception e) {
+            throw new RuntimeException("Error getting user stats: " + e.getMessage());
+        }
     }
 
-    public Map<String, Object> getUserStats(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        Map<String, Object> stats = new HashMap<>();
-        stats.put("sessionsCreated", sessionRepository.findByCreatorOrderByCreatedAtDesc(user).size());
-        stats.put("sessionsJoined", sessionRepository.findByParticipant(user).size());
-
-        Double avgRating = ratingRepository.getAverageRatingForUser(user);
-        Long ratingCount = ratingRepository.getRatingCountForUser(user);
-
-        stats.put("averageRating", avgRating != null ? avgRating : 0.0);
-        stats.put("ratingCount", ratingCount != null ? ratingCount : 0);
-
-        return stats;
+    public void updateModules(String uid, List<String> modules) {
+        try {
+            firestore.collection("users").document(uid)
+                    .update("modules", modules, "updatedAt", System.currentTimeMillis())
+                    .get();
+        } catch (Exception e) {
+            throw new RuntimeException("Error updating modules: " + e.getMessage());
+        }
     }
 
-    public void updateModules(String email, List<String> modules) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        user.setModules(modules);
-        userRepository.save(user);
+    private UserResponse mapToUserResponse(String uid, Map<String, Object> data) {
+        UserResponse response = new UserResponse();
+        response.setId(uid);
+        response.setName((String) data.get("name"));
+        response.setEmail((String) data.get("email"));
+        response.setYear((String) data.get("year"));
+        response.setModules((List<String>) data.get("modules"));
+        return response;
     }
 }

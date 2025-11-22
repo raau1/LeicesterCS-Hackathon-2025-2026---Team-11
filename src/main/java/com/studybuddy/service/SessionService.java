@@ -1,164 +1,237 @@
 package com.studybuddy.service;
 
+import com.google.api.core.ApiFuture;
+import com.google.cloud.firestore.*;
 import com.studybuddy.dto.SessionRequest;
 import com.studybuddy.dto.SessionResponse;
-import com.studybuddy.model.StudySession;
-import com.studybuddy.model.User;
-import com.studybuddy.repository.SessionRepository;
-import com.studybuddy.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class SessionService {
 
     @Autowired
-    private SessionRepository sessionRepository;
+    private Firestore firestore;
 
-    @Autowired
-    private UserRepository userRepository;
+    public SessionResponse createSession(SessionRequest request, String creatorUid) {
+        try {
+            // Get creator info
+            DocumentSnapshot userDoc = firestore.collection("users").document(creatorUid).get().get();
+            String creatorName = userDoc.getString("name");
 
-    @Transactional
-    public SessionResponse createSession(SessionRequest request, String userEmail) {
-        User creator = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            // Create session document
+            Map<String, Object> sessionData = new HashMap<>();
+            sessionData.put("title", request.getTitle());
+            sessionData.put("module", request.getModule());
+            sessionData.put("year", request.getYear());
+            sessionData.put("date", request.getDate().toString());
+            sessionData.put("time", request.getTime().toString());
+            sessionData.put("duration", request.getDuration());
+            sessionData.put("location", request.getLocation());
+            sessionData.put("maxParticipants", request.getMaxParticipants());
+            sessionData.put("preferences", request.getPreferences() != null ? request.getPreferences() : new ArrayList<>());
+            sessionData.put("description", request.getDescription());
+            sessionData.put("creatorId", creatorUid);
+            sessionData.put("creatorName", creatorName);
+            sessionData.put("participants", Arrays.asList(creatorUid));
+            sessionData.put("requests", new ArrayList<String>());
+            sessionData.put("status", "open");
+            sessionData.put("createdAt", System.currentTimeMillis());
+            sessionData.put("updatedAt", System.currentTimeMillis());
 
-        StudySession session = new StudySession();
-        session.setTitle(request.getTitle());
-        session.setModule(request.getModule());
-        session.setYear(request.getYear());
-        session.setDate(request.getDate());
-        session.setTime(request.getTime());
-        session.setDuration(request.getDuration());
-        session.setLocation(request.getLocation());
-        session.setMaxParticipants(request.getMaxParticipants());
-        session.setPreferences(request.getPreferences());
-        session.setDescription(request.getDescription());
-        session.setCreator(creator);
-        session.getParticipants().add(creator); // Creator is first participant
+            DocumentReference docRef = firestore.collection("sessions").document();
+            docRef.set(sessionData).get();
 
-        session = sessionRepository.save(session);
-
-        return SessionResponse.fromEntity(session);
+            return mapToSessionResponse(docRef.getId(), sessionData);
+        } catch (Exception e) {
+            throw new RuntimeException("Error creating session: " + e.getMessage());
+        }
     }
 
     public List<SessionResponse> getAllSessions(String year, String module) {
-        List<StudySession> sessions;
+        try {
+            Query query = firestore.collection("sessions").whereEqualTo("status", "open");
 
-        if (year != null && !year.isEmpty() && module != null && !module.isEmpty()) {
-            sessions = sessionRepository.findByStatusAndYearAndModuleOrderByCreatedAtDesc(
-                    StudySession.SessionStatus.OPEN, year, module);
-        } else if (year != null && !year.isEmpty()) {
-            sessions = sessionRepository.findByStatusAndYearOrderByCreatedAtDesc(
-                    StudySession.SessionStatus.OPEN, year);
-        } else if (module != null && !module.isEmpty()) {
-            sessions = sessionRepository.findByStatusAndModuleOrderByCreatedAtDesc(
-                    StudySession.SessionStatus.OPEN, module);
-        } else {
-            sessions = sessionRepository.findByStatusOrderByCreatedAtDesc(StudySession.SessionStatus.OPEN);
+            if (year != null && !year.isEmpty()) {
+                query = query.whereEqualTo("year", year);
+            }
+
+            if (module != null && !module.isEmpty()) {
+                query = query.whereEqualTo("module", module);
+            }
+
+            ApiFuture<QuerySnapshot> future = query.get();
+            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+
+            return documents.stream()
+                    .map(doc -> mapToSessionResponse(doc.getId(), doc.getData()))
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new RuntimeException("Error getting sessions: " + e.getMessage());
         }
-
-        return sessions.stream()
-                .map(SessionResponse::fromEntity)
-                .collect(Collectors.toList());
     }
 
-    public SessionResponse getSessionById(Long id) {
-        StudySession session = sessionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Session not found"));
-        return SessionResponse.fromEntity(session);
+    public SessionResponse getSessionById(String sessionId) {
+        try {
+            DocumentSnapshot doc = firestore.collection("sessions").document(sessionId).get().get();
+            if (!doc.exists()) {
+                throw new RuntimeException("Session not found");
+            }
+            return mapToSessionResponse(doc.getId(), doc.getData());
+        } catch (Exception e) {
+            throw new RuntimeException("Error getting session: " + e.getMessage());
+        }
     }
 
-    public List<SessionResponse> getSessionsByCreator(String userEmail) {
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public List<SessionResponse> getSessionsByCreator(String creatorUid) {
+        try {
+            QuerySnapshot snapshot = firestore.collection("sessions")
+                    .whereEqualTo("creatorId", creatorUid)
+                    .get().get();
 
-        return sessionRepository.findByCreatorOrderByCreatedAtDesc(user).stream()
-                .map(SessionResponse::fromEntity)
-                .collect(Collectors.toList());
+            return snapshot.getDocuments().stream()
+                    .map(doc -> mapToSessionResponse(doc.getId(), doc.getData()))
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new RuntimeException("Error getting user sessions: " + e.getMessage());
+        }
     }
 
-    public List<SessionResponse> getSessionsJoined(String userEmail) {
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public List<SessionResponse> getSessionsJoined(String userUid) {
+        try {
+            QuerySnapshot snapshot = firestore.collection("sessions")
+                    .whereArrayContains("participants", userUid)
+                    .get().get();
 
-        return sessionRepository.findByParticipant(user).stream()
-                .map(SessionResponse::fromEntity)
-                .collect(Collectors.toList());
+            return snapshot.getDocuments().stream()
+                    .map(doc -> mapToSessionResponse(doc.getId(), doc.getData()))
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new RuntimeException("Error getting joined sessions: " + e.getMessage());
+        }
     }
 
-    @Transactional
-    public void requestToJoin(Long sessionId, String userEmail) {
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public void requestToJoin(String sessionId, String userUid) {
+        try {
+            DocumentReference docRef = firestore.collection("sessions").document(sessionId);
+            DocumentSnapshot doc = docRef.get().get();
 
-        StudySession session = sessionRepository.findById(sessionId)
-                .orElseThrow(() -> new RuntimeException("Session not found"));
+            if (!doc.exists()) {
+                throw new RuntimeException("Session not found");
+            }
 
-        if (session.getParticipants().contains(user)) {
-            throw new RuntimeException("Already a participant");
+            List<String> participants = (List<String>) doc.get("participants");
+            List<String> requests = (List<String>) doc.get("requests");
+
+            if (participants != null && participants.contains(userUid)) {
+                throw new RuntimeException("Already a participant");
+            }
+
+            if (requests != null && requests.contains(userUid)) {
+                throw new RuntimeException("Already requested to join");
+            }
+
+            docRef.update("requests", FieldValue.arrayUnion(userUid)).get();
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage());
         }
-
-        if (session.getRequests().contains(user)) {
-            throw new RuntimeException("Already requested to join");
-        }
-
-        session.getRequests().add(user);
-        sessionRepository.save(session);
     }
 
-    @Transactional
-    public void acceptRequest(Long sessionId, Long userId, String creatorEmail) {
-        StudySession session = sessionRepository.findById(sessionId)
-                .orElseThrow(() -> new RuntimeException("Session not found"));
+    public void acceptRequest(String sessionId, String userUid, String creatorUid) {
+        try {
+            DocumentReference docRef = firestore.collection("sessions").document(sessionId);
+            DocumentSnapshot doc = docRef.get().get();
 
-        if (!session.getCreator().getEmail().equals(creatorEmail)) {
-            throw new RuntimeException("Only creator can accept requests");
+            if (!doc.exists()) {
+                throw new RuntimeException("Session not found");
+            }
+
+            if (!creatorUid.equals(doc.getString("creatorId"))) {
+                throw new RuntimeException("Only creator can accept requests");
+            }
+
+            docRef.update(
+                    "requests", FieldValue.arrayRemove(userUid),
+                    "participants", FieldValue.arrayUnion(userUid),
+                    "updatedAt", System.currentTimeMillis()
+            ).get();
+
+            // Check if full
+            doc = docRef.get().get();
+            List<String> participants = (List<String>) doc.get("participants");
+            Long maxParticipants = doc.getLong("maxParticipants");
+
+            if (participants != null && maxParticipants != null && participants.size() >= maxParticipants) {
+                docRef.update("status", "full").get();
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage());
         }
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        session.getRequests().remove(user);
-        session.getParticipants().add(user);
-
-        // Check if session is full
-        if (session.getParticipants().size() >= session.getMaxParticipants()) {
-            session.setStatus(StudySession.SessionStatus.FULL);
-        }
-
-        sessionRepository.save(session);
     }
 
-    @Transactional
-    public void declineRequest(Long sessionId, Long userId, String creatorEmail) {
-        StudySession session = sessionRepository.findById(sessionId)
-                .orElseThrow(() -> new RuntimeException("Session not found"));
+    public void declineRequest(String sessionId, String userUid, String creatorUid) {
+        try {
+            DocumentReference docRef = firestore.collection("sessions").document(sessionId);
+            DocumentSnapshot doc = docRef.get().get();
 
-        if (!session.getCreator().getEmail().equals(creatorEmail)) {
-            throw new RuntimeException("Only creator can decline requests");
+            if (!doc.exists()) {
+                throw new RuntimeException("Session not found");
+            }
+
+            if (!creatorUid.equals(doc.getString("creatorId"))) {
+                throw new RuntimeException("Only creator can decline requests");
+            }
+
+            docRef.update("requests", FieldValue.arrayRemove(userUid)).get();
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage());
         }
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        session.getRequests().remove(user);
-        sessionRepository.save(session);
     }
 
-    @Transactional
-    public void deleteSession(Long sessionId, String userEmail) {
-        StudySession session = sessionRepository.findById(sessionId)
-                .orElseThrow(() -> new RuntimeException("Session not found"));
+    public void deleteSession(String sessionId, String userUid) {
+        try {
+            DocumentReference docRef = firestore.collection("sessions").document(sessionId);
+            DocumentSnapshot doc = docRef.get().get();
 
-        if (!session.getCreator().getEmail().equals(userEmail)) {
-            throw new RuntimeException("Only creator can delete session");
+            if (!doc.exists()) {
+                throw new RuntimeException("Session not found");
+            }
+
+            if (!userUid.equals(doc.getString("creatorId"))) {
+                throw new RuntimeException("Only creator can delete session");
+            }
+
+            docRef.delete().get();
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage());
         }
+    }
 
-        sessionRepository.delete(session);
+    private SessionResponse mapToSessionResponse(String id, Map<String, Object> data) {
+        SessionResponse response = new SessionResponse();
+        response.setId(id);
+        response.setTitle((String) data.get("title"));
+        response.setModule((String) data.get("module"));
+        response.setYear((String) data.get("year"));
+        response.setDate(java.time.LocalDate.parse((String) data.get("date")));
+        response.setTime(java.time.LocalTime.parse((String) data.get("time")));
+        response.setDuration(((Long) data.get("duration")).intValue());
+        response.setLocation((String) data.get("location"));
+        response.setMaxParticipants(((Long) data.get("maxParticipants")).intValue());
+        response.setPreferences((List<String>) data.get("preferences"));
+        response.setDescription((String) data.get("description"));
+        response.setCreatorId((String) data.get("creatorId"));
+        response.setCreatorName((String) data.get("creatorName"));
+
+        List<String> participants = (List<String>) data.get("participants");
+        int participantCount = participants != null ? participants.size() : 0;
+        response.setParticipantCount(participantCount);
+        response.setSpotsLeft(response.getMaxParticipants() - participantCount);
+        response.setStatus((String) data.get("status"));
+
+        return response;
     }
 }

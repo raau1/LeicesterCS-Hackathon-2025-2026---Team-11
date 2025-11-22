@@ -1,60 +1,78 @@
 package com.studybuddy.service;
 
-import com.studybuddy.config.JwtUtil;
-import com.studybuddy.dto.AuthRequest;
+import com.google.cloud.firestore.Firestore;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthException;
+import com.google.firebase.auth.UserRecord;
 import com.studybuddy.dto.AuthResponse;
 import com.studybuddy.dto.SignupRequest;
-import com.studybuddy.model.User;
-import com.studybuddy.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 public class AuthService {
 
     @Autowired
-    private UserRepository userRepository;
+    private FirebaseAuth firebaseAuth;
 
     @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private JwtUtil jwtUtil;
-
-    @Autowired
-    private AuthenticationManager authenticationManager;
+    private Firestore firestore;
 
     public AuthResponse signup(SignupRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already registered");
+        try {
+            // Create user in Firebase Auth
+            UserRecord.CreateRequest createRequest = new UserRecord.CreateRequest()
+                    .setEmail(request.getEmail())
+                    .setPassword(request.getPassword())
+                    .setDisplayName(request.getName());
+
+            UserRecord userRecord = firebaseAuth.createUser(createRequest);
+
+            // Create user document in Firestore
+            Map<String, Object> userData = new HashMap<>();
+            userData.put("name", request.getName());
+            userData.put("email", request.getEmail());
+            userData.put("year", request.getYear());
+            userData.put("modules", new ArrayList<String>());
+            userData.put("createdAt", System.currentTimeMillis());
+            userData.put("updatedAt", System.currentTimeMillis());
+
+            firestore.collection("users").document(userRecord.getUid()).set(userData).get();
+
+            // Generate custom token for the user
+            String customToken = firebaseAuth.createCustomToken(userRecord.getUid());
+
+            return new AuthResponse(customToken, userRecord.getUid(), request.getName(), request.getEmail());
+        } catch (FirebaseAuthException e) {
+            throw new RuntimeException(getFirebaseErrorMessage(e));
+        } catch (Exception e) {
+            throw new RuntimeException("Error creating user: " + e.getMessage());
         }
-
-        User user = new User();
-        user.setName(request.getName());
-        user.setEmail(request.getEmail());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setYear(request.getYear());
-
-        user = userRepository.save(user);
-
-        String token = jwtUtil.generateToken(user.getEmail());
-
-        return new AuthResponse(token, user.getId(), user.getName(), user.getEmail());
     }
 
-    public AuthResponse login(AuthRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-        );
+    public UserRecord getUserByUid(String uid) {
+        try {
+            return firebaseAuth.getUser(uid);
+        } catch (FirebaseAuthException e) {
+            throw new RuntimeException("User not found");
+        }
+    }
 
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        String token = jwtUtil.generateToken(user.getEmail());
-
-        return new AuthResponse(token, user.getId(), user.getName(), user.getEmail());
+    private String getFirebaseErrorMessage(FirebaseAuthException e) {
+        String errorCode = e.getAuthErrorCode().name();
+        switch (errorCode) {
+            case "EMAIL_ALREADY_EXISTS":
+                return "This email is already registered";
+            case "INVALID_EMAIL":
+                return "Invalid email address";
+            case "WEAK_PASSWORD":
+                return "Password is too weak";
+            default:
+                return e.getMessage();
+        }
     }
 }

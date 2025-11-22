@@ -28,7 +28,7 @@ public class SessionController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<SessionResponse> getSession(@PathVariable Long id) {
+    public ResponseEntity<SessionResponse> getSession(@PathVariable String id) {
         SessionResponse session = sessionService.getSessionById(id);
         return ResponseEntity.ok(session);
     }
@@ -37,6 +37,7 @@ public class SessionController {
     public ResponseEntity<SessionResponse> createSession(
             @Valid @RequestBody SessionRequest request,
             Authentication authentication) {
+        // authentication.getName() returns the Firebase UID
         SessionResponse session = sessionService.createSession(request, authentication.getName());
         return ResponseEntity.ok(session);
     }
@@ -55,7 +56,7 @@ public class SessionController {
 
     @PostMapping("/{id}/request")
     public ResponseEntity<Map<String, String>> requestToJoin(
-            @PathVariable Long id,
+            @PathVariable String id,
             Authentication authentication) {
         sessionService.requestToJoin(id, authentication.getName());
         return ResponseEntity.ok(Map.of("message", "Request sent successfully"));
@@ -63,8 +64,8 @@ public class SessionController {
 
     @PostMapping("/{id}/accept/{userId}")
     public ResponseEntity<Map<String, String>> acceptRequest(
-            @PathVariable Long id,
-            @PathVariable Long userId,
+            @PathVariable String id,
+            @PathVariable String userId,
             Authentication authentication) {
         sessionService.acceptRequest(id, userId, authentication.getName());
         return ResponseEntity.ok(Map.of("message", "Request accepted"));
@@ -72,8 +73,8 @@ public class SessionController {
 
     @PostMapping("/{id}/decline/{userId}")
     public ResponseEntity<Map<String, String>> declineRequest(
-            @PathVariable Long id,
-            @PathVariable Long userId,
+            @PathVariable String id,
+            @PathVariable String userId,
             Authentication authentication) {
         sessionService.declineRequest(id, userId, authentication.getName());
         return ResponseEntity.ok(Map.of("message", "Request declined"));
@@ -81,7 +82,7 @@ public class SessionController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, String>> deleteSession(
-            @PathVariable Long id,
+            @PathVariable String id,
             Authentication authentication) {
         sessionService.deleteSession(id, authentication.getName());
         return ResponseEntity.ok(Map.of("message", "Session deleted"));

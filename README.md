@@ -1,10 +1,11 @@
 # Study Buddy
 
-A Spring Boot application for students to find study partners by year, module, and preferences.
+A Spring Boot application with Firebase for students to find study partners by year, module, and preferences.
 
 ## Features
 
-- User authentication with JWT tokens
+- User authentication with Firebase Auth
+- Cloud Firestore database for data persistence
 - Create study sessions with customizable details
 - Browse and filter sessions by year and module
 - Join request system for sessions
@@ -12,9 +13,9 @@ A Spring Boot application for students to find study partners by year, module, a
 
 ## Tech Stack
 
-- **Backend**: Spring Boot 3.2, Spring Security, Spring Data JPA
-- **Database**: H2 (development), MySQL/PostgreSQL (production)
-- **Authentication**: JWT (JSON Web Tokens)
+- **Backend**: Spring Boot 3.2, Spring Security
+- **Database**: Firebase Cloud Firestore
+- **Authentication**: Firebase Authentication
 - **Frontend**: HTML, CSS, JavaScript (vanilla)
 
 ## Project Structure
@@ -22,14 +23,13 @@ A Spring Boot application for students to find study partners by year, module, a
 ```
 ├── src/main/java/com/studybuddy/
 │   ├── StudyBuddyApplication.java    # Main application
-│   ├── config/                       # Security & JWT config
+│   ├── config/                       # Firebase & Security config
 │   ├── controller/                   # REST controllers
 │   ├── dto/                          # Data Transfer Objects
-│   ├── model/                        # JPA entities
-│   ├── repository/                   # Data access layer
-│   └── service/                      # Business logic
+│   └── service/                      # Business logic (Firestore)
 ├── src/main/resources/
 │   ├── application.properties        # App configuration
+│   ├── firebase-service-account.json # Firebase credentials (create this)
 │   └── static/                       # Frontend files
 │       ├── index.html
 │       ├── css/styles.css
@@ -44,6 +44,7 @@ A Spring Boot application for students to find study partners by year, module, a
 
 - Java 17 or higher
 - Maven 3.6+
+- Firebase project with Authentication and Firestore enabled
 
 ### 1. Clone the Repository
 
@@ -52,12 +53,37 @@ git clone <repository-url>
 cd LeicesterCS-Hackathon-2025-2026---Team-11
 ```
 
-### 2. Configure Application (Optional)
+### 2. Set Up Firebase
 
-Edit `src/main/resources/application.properties` to customize:
-- JWT secret key
-- Database settings
-- Server port
+#### Firebase Console Setup
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Create a new project (or use existing)
+3. Enable **Authentication** > Sign-in method > Email/Password
+4. Create **Firestore Database** (Start in test mode)
+
+#### Get Service Account Key (for Backend)
+1. In Firebase Console, go to **Project Settings** > **Service Accounts**
+2. Click **Generate new private key**
+3. Save the downloaded JSON file as:
+   ```
+   src/main/resources/firebase-service-account.json
+   ```
+
+#### Get Web Config (for Frontend)
+1. In Firebase Console, go to **Project Settings** > **General**
+2. Under **Your apps**, click **Add app** > **Web**
+3. Copy the config values and update `src/main/resources/static/js/firebase-config.js`:
+
+```javascript
+const firebaseConfig = {
+    apiKey: "AIzaSyDLknCYpP-WmEdfC8cjx1y-Hf_sRFCOF9o",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+```
 
 ### 3. Build and Run
 
@@ -73,18 +99,13 @@ java -jar target/study-buddy-1.0.0.jar
 ### 4. Access the Application
 
 - **Web App**: http://localhost:8080
-- **H2 Console**: http://localhost:8080/h2-console
-  - JDBC URL: `jdbc:h2:mem:studybuddy`
-  - Username: `sa`
-  - Password: (empty)
 
 ## API Endpoints
 
 ### Authentication
 
 ```
-POST /api/auth/signup    - Register new user
-POST /api/auth/login     - Login user
+POST /api/auth/signup    - Register new user (creates Firestore profile)
 ```
 
 ### Sessions
@@ -110,133 +131,106 @@ GET  /api/users/{id}      - Get user by ID
 PUT  /api/users/me/modules - Update user's modules
 ```
 
-## Database Schema
+## Firestore Data Structure
 
-### Users Table
-```sql
-users (
-    id BIGINT PRIMARY KEY,
-    name VARCHAR,
-    email VARCHAR UNIQUE,
-    password VARCHAR,
-    year VARCHAR,
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP
-)
+### Users Collection
+```javascript
+users/{uid}: {
+    name: string,
+    email: string,
+    year: string,
+    modules: string[],
+    createdAt: number,
+    updatedAt: number
+}
 ```
 
-### Study Sessions Table
-```sql
-study_sessions (
-    id BIGINT PRIMARY KEY,
-    title VARCHAR,
-    module VARCHAR,
-    year VARCHAR,
-    session_date DATE,
-    session_time TIME,
-    duration INT,
-    location VARCHAR,
-    max_participants INT,
-    description TEXT,
-    creator_id BIGINT,
-    status VARCHAR,
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP
-)
+### Sessions Collection
+```javascript
+sessions/{sessionId}: {
+    title: string,
+    module: string,
+    year: string,
+    date: string,
+    time: string,
+    duration: number,
+    location: string,
+    maxParticipants: number,
+    preferences: string[],
+    description: string,
+    creatorId: string,
+    creatorName: string,
+    participants: string[],
+    requests: string[],
+    status: 'open' | 'full' | 'completed' | 'cancelled',
+    createdAt: number,
+    updatedAt: number
+}
 ```
 
-### Ratings Table
-```sql
-ratings (
-    id BIGINT PRIMARY KEY,
-    from_user_id BIGINT,
-    to_user_id BIGINT,
-    session_id BIGINT,
-    score INT,
-    comment TEXT,
-    created_at TIMESTAMP
-)
+### Ratings Collection
+```javascript
+ratings/{ratingId}: {
+    fromUserId: string,
+    toUserId: string,
+    sessionId: string,
+    score: number,
+    comment: string,
+    createdAt: number
+}
 ```
 
 ## Day 1 Deliverables
 
 ### Backend Team
 - [x] Spring Boot project setup with Maven
-- [x] JPA entities (User, StudySession, Rating)
-- [x] Repositories with custom queries
-- [x] Service layer with business logic
+- [x] Firebase Admin SDK integration
+- [x] Firestore service layer
 - [x] REST controllers for all endpoints
-- [x] JWT authentication with Spring Security
+- [x] Firebase Auth token verification
 - [x] Session CRUD operations
 - [x] Join request system
 
 ### Frontend Team
 - [x] Single-page application structure
 - [x] Responsive navigation with routing
-- [x] Authentication UI (login/signup forms)
+- [x] Firebase Auth integration (login/signup)
 - [x] Session creation form
 - [x] Browse sessions page with filters
 - [x] Session card component
 - [x] User profile page skeleton
-- [x] API integration layer
+- [x] API integration with Firebase ID tokens
 
-## Testing the API
+## How Authentication Works
 
-### Using cURL
-
-```bash
-# Sign up
-curl -X POST http://localhost:8080/api/auth/signup \
-  -H "Content-Type: application/json" \
-  -d '{"name":"John Doe","email":"john@test.com","password":"password123","year":"2"}'
-
-# Login
-curl -X POST http://localhost:8080/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"john@test.com","password":"password123"}'
-
-# Create session (use token from login response)
-curl -X POST http://localhost:8080/api/sessions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -d '{
-    "title":"Data Structures Study",
-    "module":"CS201",
-    "year":"2",
-    "date":"2025-01-25",
-    "time":"14:00",
-    "duration":60,
-    "location":"Library Room 204",
-    "maxParticipants":4,
-    "preferences":["quiet","practice"]
-  }'
-
-# Get all sessions
-curl http://localhost:8080/api/sessions
-```
+1. **Frontend**: User signs up/logs in using Firebase Auth SDK
+2. **Frontend**: Gets Firebase ID token from authenticated user
+3. **Frontend**: Sends ID token in `Authorization: Bearer <token>` header
+4. **Backend**: Verifies token using Firebase Admin SDK
+5. **Backend**: Extracts user UID and processes request
 
 ## Next Steps (Day 2)
 
-- Add real-time updates with WebSockets
+- Add real-time updates with Firestore listeners
 - Implement rating/review system
 - Build chat/messaging feature
-- Add email notifications
+- Add push notifications
 - Calendar integration
 - Enhanced search and filtering
 
-## Production Deployment
+## Troubleshooting
 
-1. Update `application.properties` for production:
-   - Use MySQL/PostgreSQL instead of H2
-   - Set secure JWT secret
-   - Configure HTTPS
+### "Could not initialize Firebase" error
+- Make sure `firebase-service-account.json` exists in `src/main/resources/`
+- Check that the file contains valid JSON from Firebase Console
 
-2. Build production JAR:
-   ```bash
-   mvn clean package -Pprod
-   ```
+### "User not found" after signup
+- The user was created in Firebase Auth but not in Firestore
+- Check Firestore rules allow write access
 
-3. Deploy to your server or cloud platform
+### CORS errors
+- The app serves frontend from Spring Boot, so CORS shouldn't be an issue
+- If using separate frontend server, add CORS config to Spring Security
 
 ## Team
 
