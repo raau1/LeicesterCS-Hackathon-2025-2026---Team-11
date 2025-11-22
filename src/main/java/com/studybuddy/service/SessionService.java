@@ -239,11 +239,11 @@ public class SessionService {
         response.setTitle((String) data.get("title"));
         response.setModule((String) data.get("module"));
         response.setYear((String) data.get("year"));
-        response.setDate(java.time.LocalDate.parse((String) data.get("date")));
-        response.setTime(java.time.LocalTime.parse((String) data.get("time")));
+        response.setDate((String) data.get("date"));
+        response.setTime((String) data.get("time"));
         response.setDuration(((Long) data.get("duration")).intValue());
         response.setMaxParticipants(((Long) data.get("maxParticipants")).intValue());
-        response.setPreferences((List<String>) data.get("preferences"));
+        response.setPreferences((String) data.get("preferences"));
         response.setDescription((String) data.get("description"));
         response.setCreatorId((String) data.get("creatorId"));
         response.setCreatorName((String) data.get("creatorName"));
@@ -252,13 +252,8 @@ public class SessionService {
         int participantCount = participants != null ? participants.size() : 0;
         response.setParticipantCount(participantCount);
         response.setSpotsLeft(response.getMaxParticipants() - participantCount);
-        response.setStatus((String) data.get("status"));
         response.setParticipants(participants);
-        response.setRequests((List<String>) data.get("requests"));
-
-        // Handle isLive field
-        Boolean isLive = (Boolean) data.get("isLive");
-        response.setIsLive(isLive != null ? isLive : false);
+        response.setJoinRequests((List<String>) data.get("requests"));
 
         return response;
     }
