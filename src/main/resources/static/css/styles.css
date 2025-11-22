@@ -1143,3 +1143,55 @@ input, select, textarea {
         height: 400px;
     }
 }
+
+/* ===== Pending Requests Section ===== */
+.pending-requests-section {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.pending-requests-section h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+.request-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: var(--bg-primary);
+    border-radius: var(--radius-md);
+    margin-bottom: 0.75rem;
+    border: 1px solid var(--border-color);
+}
+
+.request-user-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.request-user-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.request-user-details {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.request-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.request-actions .btn {
+    padding: 0.5rem 1rem;
+}

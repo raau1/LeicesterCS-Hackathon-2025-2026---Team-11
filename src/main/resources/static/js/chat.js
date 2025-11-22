@@ -8,13 +8,18 @@ const Chat = {
 
     // Initialize chat for a session
     async init(sessionId) {
+        // Clean up any existing chat first
+        this.cleanup();
+
         this.currentSessionId = sessionId;
         this.messages = [];
         this.lastTimestamp = 0;
 
-        // Set up form handler
+        // Set up form handler - remove any existing handler first
         const chatForm = document.getElementById('chatForm');
-        chatForm.onsubmit = (e) => this.handleSendMessage(e);
+        const newForm = chatForm.cloneNode(true);
+        chatForm.parentNode.replaceChild(newForm, chatForm);
+        newForm.onsubmit = (e) => this.handleSendMessage(e);
 
         // Load existing messages
         await this.loadMessages();
