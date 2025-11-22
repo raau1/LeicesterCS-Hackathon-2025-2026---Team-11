@@ -4,10 +4,12 @@ import com.google.cloud.firestore.Firestore;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.UserRecord;
+import com.studybuddy.dto.AuthRequest;
 import com.studybuddy.dto.AuthResponse;
 import com.studybuddy.dto.SignupRequest;
 import com.studybuddy.exception.BadRequestException;
 import com.studybuddy.exception.ResourceNotFoundException;
+import com.studybuddy.exception.UnauthorizedException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +17,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 @Service
 public class AuthService {
@@ -59,6 +62,38 @@ public class AuthService {
             throw new BadRequestException(getFirebaseErrorMessage(e));
         } catch (Exception e) {
             throw new BadRequestException("Error creating user: " + e.getMessage());
+        }
+    }
+
+    public AuthResponse login(AuthRequest request) {
+        try {
+            // Get user by email
+            UserRecord userRecord = firebaseAuth.getUserByEmail(request.getEmail());
+
+            // Fetch user data from Firestore
+            Map<String, Object> userData = firestore.collection("users")
+                    .document(userRecord.getUid())
+                    .get()
+                    .get()
+                    .getData();
+
+            if (userData == null) {
+                throw new UnauthorizedException("User data not found");
+            }
+
+            // Generate custom token for the user
+            String customToken = firebaseAuth.createCustomToken(userRecord.getUid());
+
+            return AuthResponse.builder()
+                    .token(customToken)
+                    .userId(userRecord.getUid())
+                    .name((String) userData.get("name"))
+                    .email(userRecord.getEmail())
+                    .build();
+        } catch (FirebaseAuthException e) {
+            throw new UnauthorizedException("Invalid email or password");
+        } catch (ExecutionException | InterruptedException e) {
+            throw new BadRequestException("Error during login: " + e.getMessage());
         }
     }
 
