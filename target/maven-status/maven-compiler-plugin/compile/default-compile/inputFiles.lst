@@ -1,0 +1,17 @@
+C:\Users\raulb\OneDrive\Documentos\TheHackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\controller\SessionController.java
+C:\Users\raulb\OneDrive\Documentos\TheHackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\config\SecurityConfig.java
+C:\Users\raulb\OneDrive\Documentos\TheHackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\service\SessionService.java
+C:\Users\raulb\OneDrive\Documentos\TheHackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\service\UserService.java
+C:\Users\raulb\OneDrive\Documentos\TheHackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\dto\SessionRequest.java
+C:\Users\raulb\OneDrive\Documentos\TheHackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\config\FirebaseAuthenticationFilter.java
+C:\Users\raulb\OneDrive\Documentos\TheHackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\config\GlobalExceptionHandler.java
+C:\Users\raulb\OneDrive\Documentos\TheHackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\dto\SessionResponse.java
+C:\Users\raulb\OneDrive\Documentos\TheHackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\controller\AuthController.java
+C:\Users\raulb\OneDrive\Documentos\TheHackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\dto\AuthRequest.java
+C:\Users\raulb\OneDrive\Documentos\TheHackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\dto\AuthResponse.java
+C:\Users\raulb\OneDrive\Documentos\TheHackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\config\FirebaseConfig.java
+C:\Users\raulb\OneDrive\Documentos\TheHackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\controller\UserController.java
+C:\Users\raulb\OneDrive\Documentos\TheHackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\dto\SignupRequest.java
+C:\Users\raulb\OneDrive\Documentos\TheHackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\service\AuthService.java
+C:\Users\raulb\OneDrive\Documentos\TheHackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\dto\UserResponse.java
+C:\Users\raulb\OneDrive\Documentos\TheHackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\StudyBuddyApplication.java
