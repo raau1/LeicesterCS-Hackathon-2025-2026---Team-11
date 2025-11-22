@@ -39,8 +39,8 @@ public class SessionService {
                 sessionData.put("time", request.getTime().toString());
             }
 
-            sessionData.put("duration", request.getDuration());
-            sessionData.put("maxParticipants", request.getMaxParticipants());
+            sessionData.put("duration", request.getDuration().longValue());
+            sessionData.put("maxParticipants", request.getMaxParticipants().longValue());
             sessionData.put("preferences", request.getPreferences() != null ? request.getPreferences() : new ArrayList<>());
             sessionData.put("description", request.getDescription());
             sessionData.put("isLive", isLive);
