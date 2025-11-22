@@ -234,7 +234,7 @@ const App = {
                     time: startNow ? null : formData.get('time'),
                     duration: parseInt(formData.get('duration')),
                     maxParticipants: parseInt(formData.get('maxParticipants')),
-                    preferences: preferences,
+                    preferences: preferences.join(','),
                     description: formData.get('description'),
                     startNow: startNow
                 };
@@ -334,20 +334,33 @@ const App = {
         if (!Auth.isLoggedIn()) return;
 
         try {
-            const [user, stats] = await Promise.all([
-                API.get('/users/me'),
-                API.get('/users/me/stats')
-            ]);
+            // Get user data - fallback to Auth.currentUser if API fails
+            let user = Auth.currentUser;
+            let stats = { sessionsCreated: 0, sessionsJoined: 0, averageRating: 0, ratingCount: 0 };
+
+            try {
+                const [userData, userStats] = await Promise.all([
+                    API.get('/users/me'),
+                    API.get('/users/me/stats')
+                ]);
+                user = userData;
+                stats = userStats;
+            } catch (apiError) {
+                console.warn('Could not fetch profile from API, using local data');
+            }
 
             // Update profile UI
             const nameEl = document.getElementById('profileName');
             const yearEl = document.getElementById('profileYear');
+            const emailEl = document.getElementById('profileEmail');
             const avatarEl = document.getElementById('profileAvatar');
 
-            if (nameEl) nameEl.textContent = user.name;
-            if (yearEl) yearEl.textContent = `Year ${user.year}`;
+            if (nameEl) nameEl.textContent = user.name || user.email || 'User';
+            if (yearEl) yearEl.textContent = user.year ? `Year ${user.year}` : 'Year not set';
+            if (emailEl) emailEl.textContent = user.email || '';
             if (avatarEl) {
-                const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase();
+                const name = user.name || user.email || 'U';
+                const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
                 avatarEl.querySelector('span').textContent = initials;
             }
 
@@ -356,26 +369,134 @@ const App = {
             const statJoined = document.getElementById('statJoined');
             const statRating = document.getElementById('statRating');
 
-            if (statSessions) statSessions.textContent = stats.sessionsCreated;
-            if (statJoined) statJoined.textContent = stats.sessionsJoined;
+            if (statSessions) statSessions.textContent = stats.sessionsCreated || 0;
+            if (statJoined) statJoined.textContent = stats.sessionsJoined || 0;
             if (statRating) {
                 statRating.textContent = stats.averageRating > 0
                     ? stats.averageRating.toFixed(1)
                     : '-';
             }
 
-            // Update modules
-            const modulesList = document.getElementById('modulesList');
-            if (modulesList && user.modules) {
-                const moduleTags = user.modules.map(m =>
-                    `<span class="module-tag">${m}</span>`
-                ).join('');
-                modulesList.innerHTML = moduleTags +
-                    '<button class="btn btn-sm btn-outline" id="addModuleBtn">+ Add Module</button>';
+            // Update rating stars and count
+            const ratingStars = document.getElementById('profileStars');
+            const ratingCountEl = document.getElementById('profileRatingCount');
+            if (ratingStars) {
+                if (stats.averageRating > 0) {
+                    const fullStars = Math.floor(stats.averageRating);
+                    ratingStars.textContent = '⭐'.repeat(fullStars) + '☆'.repeat(5 - fullStars);
+                } else {
+                    ratingStars.textContent = '☆☆☆☆☆';
+                }
             }
+            if (ratingCountEl) {
+                ratingCountEl.textContent = `(${stats.ratingCount || 0} ratings)`;
+            }
+
+            // Load user's sessions
+            await this.loadProfileSessions();
+
+            // Set up tab switching
+            this.setupProfileTabs();
+
         } catch (error) {
             console.error('Error loading profile:', error);
         }
+    },
+
+    // Load sessions for profile page
+    async loadProfileSessions() {
+        try {
+            const [created, joined] = await Promise.all([
+                Sessions.getMySessions(),
+                Sessions.getJoined()
+            ]);
+
+            // Filter created sessions to find those with pending requests
+            const pending = created.filter(session =>
+                session.joinRequests && session.joinRequests.length > 0
+            );
+
+            // Store for tab switching
+            this.profileData = { created, joined, pending };
+
+            // Show created sessions by default
+            this.showProfileTab('created');
+        } catch (error) {
+            console.error('Error loading profile sessions:', error);
+        }
+    },
+
+    // Show specific tab content
+    showProfileTab(tabName) {
+        const container = document.getElementById('profileSessions');
+        if (!container || !this.profileData) return;
+
+        let sessions = [];
+        if (tabName === 'created') {
+            sessions = this.profileData.created || [];
+        } else if (tabName === 'joined') {
+            sessions = this.profileData.joined || [];
+        } else if (tabName === 'pending') {
+            sessions = this.profileData.pending || [];
+        }
+
+        if (sessions.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p>No ${tabName === 'pending' ? 'pending requests' : tabName + ' sessions'} yet</p>
+                </div>
+            `;
+        } else if (tabName === 'pending') {
+            // Special rendering for pending requests
+            this.renderPendingRequestsTab(container, sessions);
+        } else {
+            container.innerHTML = sessions.map(session => Sessions.renderCard(session)).join('');
+        }
+    },
+
+    // Render pending requests tab with session info and request list
+    async renderPendingRequestsTab(container, sessions) {
+        container.innerHTML = sessions.map(session => {
+            const requestCount = session.joinRequests ? session.joinRequests.length : 0;
+            return `
+                <div class="pending-session-card" data-session-id="${session.id}">
+                    <div class="pending-session-header">
+                        <div>
+                            <h4 class="pending-session-title">${session.title}</h4>
+                            <span class="pending-session-module">${session.module}</span>
+                        </div>
+                        <span class="pending-count">${requestCount} pending</span>
+                    </div>
+                    <div class="pending-requests-list" id="pending-${session.id}">
+                        <p class="loading-text">Loading requests...</p>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Load request details for each session
+        for (const session of sessions) {
+            const listContainer = document.getElementById(`pending-${session.id}`);
+            if (listContainer && session.joinRequests) {
+                await Sessions.renderPendingRequests(session.id, session.joinRequests, listContainer);
+            }
+        }
+    },
+
+    // Set up profile tab switching
+    setupProfileTabs() {
+        const tabBtns = document.querySelectorAll('.profile-section .tab-btn');
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                // Update active state
+                tabBtns.forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+
+                // Show tab content
+                const tabName = e.target.getAttribute('data-tab');
+                this.showProfileTab(tabName);
+            });
+        });
     },
 
     // Show toast notification

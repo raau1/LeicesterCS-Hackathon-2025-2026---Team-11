@@ -194,8 +194,17 @@ const Sessions = {
         try {
             await this.acceptRequest(sessionId, userId);
             App.showToast('Request accepted!', 'success');
-            // Reload session to update UI
-            await this.viewSession(sessionId);
+            // Check if we're on profile page or session view
+            const profilePage = document.getElementById('profilePage');
+            if (profilePage && profilePage.classList.contains('active')) {
+                // Reload profile sessions to update pending tab
+                await App.loadProfileSessions();
+                // Switch to pending tab to show updated list
+                App.showProfileTab('pending');
+            } else {
+                // Reload session to update UI
+                await this.viewSession(sessionId);
+            }
         } catch (error) {
             App.showToast('Failed to accept request', 'error');
         }
@@ -206,8 +215,17 @@ const Sessions = {
         try {
             await this.declineRequest(sessionId, userId);
             App.showToast('Request declined', 'info');
-            // Reload session to update UI
-            await this.viewSession(sessionId);
+            // Check if we're on profile page or session view
+            const profilePage = document.getElementById('profilePage');
+            if (profilePage && profilePage.classList.contains('active')) {
+                // Reload profile sessions to update pending tab
+                await App.loadProfileSessions();
+                // Switch to pending tab to show updated list
+                App.showProfileTab('pending');
+            } else {
+                // Reload session to update UI
+                await this.viewSession(sessionId);
+            }
         } catch (error) {
             App.showToast('Failed to decline request', 'error');
         }
@@ -266,6 +284,13 @@ const Sessions = {
         const isLive = session.isLive;
         const timeRemaining = isLive ? this.getTimeRemaining(session) : null;
 
+        // Check if current user is participant, creator, or has pending request
+        const currentUserId = Auth.currentUser?.id;
+        const isParticipant = session.participants && session.participants.includes(currentUserId);
+        const isCreator = session.creatorId === currentUserId;
+        const hasPendingRequest = session.joinRequests && session.joinRequests.includes(currentUserId);
+        const showJoinButton = !isParticipant && !isCreator && !hasPendingRequest;
+
         return `
             <div class="session-card" data-session-id="${session.id}">
                 <div class="session-header">
@@ -312,9 +337,15 @@ const Sessions = {
                         <button class="btn btn-secondary btn-sm view-btn" data-session-id="${session.id}">
                             View
                         </button>
-                        <button class="btn btn-primary btn-sm join-btn" data-session-id="${session.id}">
-                            Join
-                        </button>
+                        ${showJoinButton ? `
+                            <button class="btn btn-primary btn-sm join-btn" data-session-id="${session.id}">
+                                Join
+                            </button>
+                        ` : hasPendingRequest ? `
+                            <span class="btn btn-warning btn-sm" style="cursor: default;">Requested</span>
+                        ` : (isParticipant || isCreator) ? `
+                            <span class="btn btn-success btn-sm" style="cursor: default;">Joined</span>
+                        ` : ''}
                     </div>
                 </div>
             </div>
@@ -385,19 +416,19 @@ const Sessions = {
             const pendingSection = document.getElementById('pendingRequestsSection');
             const pendingList = document.getElementById('pendingRequestsList');
 
-            if (isCreator && session.requests && session.requests.length > 0) {
+            if (isCreator && session.joinRequests && session.joinRequests.length > 0) {
                 pendingSection.classList.remove('hidden');
-                await this.renderPendingRequests(sessionId, session.requests, pendingList);
+                await this.renderPendingRequests(sessionId, session.joinRequests, pendingList);
             } else {
                 pendingSection.classList.add('hidden');
                 pendingList.innerHTML = '';
             }
 
-            // Check if user is a participant to show/hide chat
+            // Check if user is a participant or creator to show/hide chat
             const isParticipant = session.participants && session.participants.includes(currentUserId);
             const chatPanel = document.getElementById('chatPanel');
 
-            if (isParticipant) {
+            if (isParticipant || isCreator) {
                 chatPanel.style.display = 'flex';
                 // Initialize chat
                 Chat.init(sessionId);
