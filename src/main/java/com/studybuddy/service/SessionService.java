@@ -38,13 +38,13 @@ public class SessionService {
                 if (request.getDate() == null || request.getTime() == null) {
                     throw new RuntimeException("Date and time are required when not starting now");
                 }
-                sessionData.put("date", request.getDate().toString());
-                sessionData.put("time", request.getTime().toString());
+                sessionData.put("date", request.getDate());
+                sessionData.put("time", request.getTime());
             }
 
             sessionData.put("duration", request.getDuration().longValue());
             sessionData.put("maxParticipants", request.getMaxParticipants().longValue());
-            sessionData.put("preferences", request.getPreferences() != null ? request.getPreferences() : new ArrayList<>());
+            sessionData.put("preferences", request.getPreferences() != null ? request.getPreferences() : "");
             sessionData.put("description", request.getDescription());
             sessionData.put("isLive", isLive);
             sessionData.put("creatorId", creatorUid);
