@@ -61,6 +61,12 @@ const App = {
 
     // Navigate to a page
     navigateTo(pageName) {
+        // Clean up timers when leaving sessionView
+        if (Sessions.timerInterval) {
+            clearInterval(Sessions.timerInterval);
+            Sessions.timerInterval = null;
+        }
+
         // Check if page requires authentication
         const protectedPages = ['create', 'profile'];
         if (protectedPages.includes(pageName) && !Auth.isLoggedIn()) {
@@ -95,10 +101,19 @@ const App = {
     },
 
     // Handle page-specific initialization
+    browseRefreshInterval: null,
     onPageLoad(pageName) {
+        // Clear any refresh intervals from previous pages
+        if (this.browseRefreshInterval) {
+            clearInterval(this.browseRefreshInterval);
+            this.browseRefreshInterval = null;
+        }
+
         switch (pageName) {
             case 'browse':
                 this.loadSessions();
+                // Auto-refresh every 30 seconds to update timers and remove expired sessions
+                this.browseRefreshInterval = setInterval(() => this.loadSessions(), 30000);
                 break;
             case 'profile':
                 this.loadProfile();
@@ -112,11 +127,15 @@ const App = {
                     dateInput.value = today;
                 }
 
-                // Set up startNow toggle
+                // Set up startNow toggle (remove old listeners by cloning)
                 const startNowCheckbox = document.getElementById('startNow');
                 const scheduleFields = document.getElementById('scheduleFields');
                 if (startNowCheckbox && scheduleFields) {
-                    startNowCheckbox.addEventListener('change', (e) => {
+                    // Clone to remove old event listeners
+                    const newCheckbox = startNowCheckbox.cloneNode(true);
+                    startNowCheckbox.parentNode.replaceChild(newCheckbox, startNowCheckbox);
+
+                    newCheckbox.addEventListener('change', (e) => {
                         if (e.target.checked) {
                             scheduleFields.style.display = 'none';
                         } else {
@@ -124,7 +143,7 @@ const App = {
                         }
                     });
                     // Reset on page load
-                    startNowCheckbox.checked = false;
+                    newCheckbox.checked = false;
                     scheduleFields.style.display = 'block';
                 }
                 break;
@@ -302,7 +321,9 @@ const App = {
 
         try {
             await Sessions.requestJoin(sessionId);
-            this.showToast('Join request sent!', 'success');
+            this.showToast('Join request sent! Waiting for host approval.', 'success');
+            // Reload sessions to show updated status
+            this.loadSessions();
         } catch (error) {
             this.showToast(error.message, 'error');
         }

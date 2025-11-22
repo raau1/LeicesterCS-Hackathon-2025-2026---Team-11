@@ -35,6 +35,9 @@ public class SessionService {
                 sessionData.put("date", now.toLocalDate().toString());
                 sessionData.put("time", now.toLocalTime().toString());
             } else {
+                if (request.getDate() == null || request.getTime() == null) {
+                    throw new RuntimeException("Date and time are required when not starting now");
+                }
                 sessionData.put("date", request.getDate().toString());
                 sessionData.put("time", request.getTime().toString());
             }
@@ -135,15 +138,22 @@ public class SessionService {
 
             List<String> participants = (List<String>) doc.get("participants");
             List<String> requests = (List<String>) doc.get("requests");
+            Long maxParticipants = doc.getLong("maxParticipants");
 
             if (participants != null && participants.contains(userUid)) {
                 throw new RuntimeException("Already a participant");
             }
 
             if (requests != null && requests.contains(userUid)) {
-                throw new RuntimeException("Already requested to join");
+                throw new RuntimeException("Request already pending");
             }
 
+            // Check if session is full
+            if (participants != null && maxParticipants != null && participants.size() >= maxParticipants) {
+                throw new RuntimeException("Session is full");
+            }
+
+            // Add to pending requests
             docRef.update("requests", FieldValue.arrayUnion(userUid)).get();
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage());
@@ -163,13 +173,14 @@ public class SessionService {
                 throw new RuntimeException("Only creator can accept requests");
             }
 
+            // Move user from requests to participants
             docRef.update(
                     "requests", FieldValue.arrayRemove(userUid),
                     "participants", FieldValue.arrayUnion(userUid),
                     "updatedAt", System.currentTimeMillis()
             ).get();
 
-            // Check if full
+            // Check if session became full
             doc = docRef.get().get();
             List<String> participants = (List<String>) doc.get("participants");
             Long maxParticipants = doc.getLong("maxParticipants");
@@ -195,11 +206,13 @@ public class SessionService {
                 throw new RuntimeException("Only creator can decline requests");
             }
 
+            // Remove user from requests
             docRef.update("requests", FieldValue.arrayRemove(userUid)).get();
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage());
         }
     }
+
 
     public void deleteSession(String sessionId, String userUid) {
         try {
@@ -241,6 +254,7 @@ public class SessionService {
         response.setSpotsLeft(response.getMaxParticipants() - participantCount);
         response.setStatus((String) data.get("status"));
         response.setParticipants(participants);
+        response.setRequests((List<String>) data.get("requests"));
 
         // Handle isLive field
         Boolean isLive = (Boolean) data.get("isLive");

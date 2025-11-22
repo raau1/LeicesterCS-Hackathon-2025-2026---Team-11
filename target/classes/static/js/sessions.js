@@ -100,6 +100,147 @@ const Sessions = {
         }
     },
 
+    // Calculate time remaining for a session
+    getTimeRemaining(session) {
+        if (!session.date || !session.time || !session.duration) return null;
+
+        const [year, month, day] = session.date.split('-');
+        const [hours, minutes] = session.time.split(':');
+
+        const sessionStart = new Date(year, month - 1, day, hours, minutes);
+        const sessionEnd = new Date(sessionStart.getTime() + session.duration * 60000);
+        const now = new Date();
+
+        if (now > sessionEnd) return 'Expired';
+        if (now < sessionStart) return 'Not started';
+
+        const msRemaining = sessionEnd - now;
+        const minutesRemaining = Math.floor(msRemaining / 60000);
+        const hoursRemaining = Math.floor(minutesRemaining / 60);
+        const minsRemaining = minutesRemaining % 60;
+
+        if (hoursRemaining > 0) {
+            return `${hoursRemaining}h ${minsRemaining}m left`;
+        } else {
+            return `${minsRemaining}m left`;
+        }
+    },
+
+    // Render pending join requests
+    async renderPendingRequests(sessionId, requestUserIds, container) {
+        if (!requestUserIds || requestUserIds.length === 0) {
+            container.innerHTML = '<p>No pending requests</p>';
+            return;
+        }
+
+        try {
+            // Fetch user details for each request
+            const userPromises = requestUserIds.map(userId => API.get(`/users/${userId}`));
+            const users = await Promise.all(userPromises);
+
+            container.innerHTML = users.map(user => `
+                <div class="request-item">
+                    <div class="request-user-info">
+                        <div class="creator-avatar">${user.name.split(' ').map(n => n[0]).join('').toUpperCase()}</div>
+                        <div>
+                            <div class="request-user-name">${user.name}</div>
+                            <div class="request-user-details">Year ${user.year}</div>
+                        </div>
+                    </div>
+                    <div class="request-actions">
+                        <button class="btn btn-primary btn-sm accept-request-btn"
+                                data-session-id="${sessionId}"
+                                data-user-id="${user.id}">
+                            Accept
+                        </button>
+                        <button class="btn btn-secondary btn-sm decline-request-btn"
+                                data-session-id="${sessionId}"
+                                data-user-id="${user.id}">
+                            Decline
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            // Set up event handlers for accept/decline buttons
+            this.setupRequestHandlers();
+        } catch (error) {
+            console.error('Error rendering requests:', error);
+            container.innerHTML = '<p>Error loading requests</p>';
+        }
+    },
+
+    // Set up handlers for accept/decline buttons
+    setupRequestHandlers() {
+        document.querySelectorAll('.accept-request-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const sessionId = e.target.getAttribute('data-session-id');
+                const userId = e.target.getAttribute('data-user-id');
+                await this.handleAcceptRequest(sessionId, userId);
+            });
+        });
+
+        document.querySelectorAll('.decline-request-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const sessionId = e.target.getAttribute('data-session-id');
+                const userId = e.target.getAttribute('data-user-id');
+                await this.handleDeclineRequest(sessionId, userId);
+            });
+        });
+    },
+
+    // Handle accepting a request
+    async handleAcceptRequest(sessionId, userId) {
+        try {
+            await this.acceptRequest(sessionId, userId);
+            App.showToast('Request accepted!', 'success');
+            // Reload session to update UI
+            await this.viewSession(sessionId);
+        } catch (error) {
+            App.showToast('Failed to accept request', 'error');
+        }
+    },
+
+    // Handle declining a request
+    async handleDeclineRequest(sessionId, userId) {
+        try {
+            await this.declineRequest(sessionId, userId);
+            App.showToast('Request declined', 'info');
+            // Reload session to update UI
+            await this.viewSession(sessionId);
+        } catch (error) {
+            App.showToast('Failed to decline request', 'error');
+        }
+    },
+
+    // Start a live countdown timer for a session
+    timerInterval: null,
+    startSessionTimer(session, element) {
+        // Clear any existing timer
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+        }
+
+        const updateTimer = () => {
+            const timeRemaining = this.getTimeRemaining(session);
+            if (timeRemaining === 'Expired') {
+                element.textContent = 'Session ended';
+                clearInterval(this.timerInterval);
+                // Redirect back to browse after a short delay
+                setTimeout(() => {
+                    App.showToast('Session has ended', 'info');
+                    App.navigateTo('browse');
+                }, 2000);
+            } else {
+                element.textContent = timeRemaining;
+            }
+        };
+
+        // Update immediately and then every second
+        updateTimer();
+        this.timerInterval = setInterval(updateTimer, 1000);
+    },
+
     // Render session card HTML
     renderCard(session) {
         const dateObj = session.date ? new Date(session.date) : new Date();
@@ -108,6 +249,9 @@ const Sessions = {
             day: 'numeric',
             month: 'short'
         });
+
+        // Format time to HH:MM (remove seconds)
+        const formattedTime = session.time ? session.time.substring(0, 5) : '';
 
         const preferences = session.preferences || [];
         const preferenceTags = preferences.map(pref =>
@@ -118,8 +262,9 @@ const Sessions = {
         const initials = session.creatorName ?
             session.creatorName.split(' ').map(n => n[0]).join('').toUpperCase() : 'U';
 
-        // Check if session is live
+        // Check if session is live and get time remaining
         const isLive = session.isLive;
+        const timeRemaining = isLive ? this.getTimeRemaining(session) : null;
 
         return `
             <div class="session-card" data-session-id="${session.id}">
@@ -137,11 +282,11 @@ const Sessions = {
                 <div class="session-details">
                     <div class="session-detail">
                         <span class="session-detail-icon">📅</span>
-                        ${isLive ? 'Started ' : ''}${formattedDate} at ${session.time}
+                        ${isLive ? 'Started ' : ''}${formattedDate} at ${formattedTime}
                     </div>
                     <div class="session-detail">
                         <span class="session-detail-icon">⏱️</span>
-                        ${session.duration} minutes
+                        ${isLive && timeRemaining ? `<strong>${timeRemaining}</strong>` : `${session.duration} minutes`}
                     </div>
                     <div class="session-detail">
                         <span class="session-detail-icon">👥</span>
@@ -192,8 +337,18 @@ const Sessions = {
                 month: 'long',
                 year: 'numeric'
             });
-            document.getElementById('viewSessionDateTime').textContent = `${formattedDate} at ${session.time}`;
-            document.getElementById('viewSessionDuration').textContent = `${session.duration} minutes`;
+            const formattedTime = session.time ? session.time.substring(0, 5) : '';
+            document.getElementById('viewSessionDateTime').textContent = `${formattedDate} at ${formattedTime}`;
+
+            // Set up duration display (with timer for live sessions)
+            const durationEl = document.getElementById('viewSessionDuration');
+            if (session.isLive) {
+                // Start live countdown timer
+                this.startSessionTimer(session, durationEl);
+            } else {
+                durationEl.textContent = `${session.duration} minutes`;
+            }
+
             document.getElementById('viewSessionParticipants').textContent =
                 `${session.participantCount}/${session.maxParticipants}`;
             document.getElementById('viewSessionHost').textContent = session.creatorName;
@@ -224,8 +379,21 @@ const Sessions = {
                 prefsEl.innerHTML = '';
             }
 
-            // Check if user is a participant to show/hide chat
+            // Show pending requests if user is the creator
             const currentUserId = Auth.currentUser?.id;
+            const isCreator = session.creatorId === currentUserId;
+            const pendingSection = document.getElementById('pendingRequestsSection');
+            const pendingList = document.getElementById('pendingRequestsList');
+
+            if (isCreator && session.requests && session.requests.length > 0) {
+                pendingSection.classList.remove('hidden');
+                await this.renderPendingRequests(sessionId, session.requests, pendingList);
+            } else {
+                pendingSection.classList.add('hidden');
+                pendingList.innerHTML = '';
+            }
+
+            // Check if user is a participant to show/hide chat
             const isParticipant = session.participants && session.participants.includes(currentUserId);
             const chatPanel = document.getElementById('chatPanel');
 

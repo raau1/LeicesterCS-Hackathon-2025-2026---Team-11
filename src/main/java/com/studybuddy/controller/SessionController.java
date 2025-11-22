@@ -59,7 +59,7 @@ public class SessionController {
             @PathVariable String id,
             Authentication authentication) {
         sessionService.requestToJoin(id, authentication.getName());
-        return ResponseEntity.ok(Map.of("message", "Request sent successfully"));
+        return ResponseEntity.ok(Map.of("message", "Join request sent"));
     }
 
     @PostMapping("/{id}/accept/{userId}")

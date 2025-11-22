@@ -24,5 +24,6 @@ public class SessionResponse {
     private Integer spotsLeft;
     private String status;
     private List<String> participants;
+    private List<String> requests;
     private Boolean isLive;
 }
