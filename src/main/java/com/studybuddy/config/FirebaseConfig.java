@@ -11,8 +11,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import javax.annotation.PostConstruct;
+import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 @Configuration
 public class FirebaseConfig {
@@ -24,7 +26,18 @@ public class FirebaseConfig {
     public void initialize() {
         try {
             if (FirebaseApp.getApps().isEmpty()) {
-                FileInputStream serviceAccount = new FileInputStream(firebaseConfigPath);
+                InputStream serviceAccount;
+
+                // Check for environment variable first (for cloud deployment)
+                String firebaseCredentials = System.getenv("FIREBASE_CREDENTIALS");
+                if (firebaseCredentials != null && !firebaseCredentials.isEmpty()) {
+                    serviceAccount = new ByteArrayInputStream(firebaseCredentials.getBytes());
+                    System.out.println("Loading Firebase credentials from environment variable");
+                } else {
+                    // Fall back to file path (for local development)
+                    serviceAccount = new FileInputStream(firebaseConfigPath);
+                    System.out.println("Loading Firebase credentials from file");
+                }
 
                 FirebaseOptions options = FirebaseOptions.builder()
                         .setCredentials(GoogleCredentials.fromStream(serviceAccount))
