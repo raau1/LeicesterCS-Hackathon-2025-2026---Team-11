@@ -113,8 +113,8 @@ const Sessions = {
     getTimeRemaining(session) {
         if (!session.date || !session.time || !session.duration) return null;
 
-        const [year, month, day] = session.date.split('-');
-        const [hours, minutes] = session.time.split(':');
+        const [year, month, day] = session.date.split('-').map(Number);
+        const [hours, minutes] = session.time.split(':').map(Number);
 
         const sessionStart = new Date(year, month - 1, day, hours, minutes);
         const sessionEnd = new Date(sessionStart.getTime() + session.duration * 60000);
