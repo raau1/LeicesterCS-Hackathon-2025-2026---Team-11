@@ -100,6 +100,15 @@ const Sessions = {
         }
     },
 
+    // Kick a participant from a session
+    async kick(sessionId, userId) {
+        try {
+            return await API.post(`/sessions/${sessionId}/kick/${userId}`, {});
+        } catch (error) {
+            throw error;
+        }
+    },
+
     // Calculate time remaining for a session
     getTimeRemaining(session) {
         if (!session.date || !session.time || !session.duration) return null;
@@ -286,16 +295,39 @@ const Sessions = {
         const initials = session.creatorName ?
             session.creatorName.split(' ').map(n => n[0]).join('').toUpperCase() : 'U';
 
-        // Check if session is live and get time remaining
+        // Check if session is live, scheduled, and get time remaining
         const isLive = session.isLive;
+        const isScheduled = session.isScheduled;
         const timeRemaining = isLive ? this.getTimeRemaining(session) : null;
+
+        // Format scheduled start time
+        let scheduledInfo = '';
+        if (isScheduled && session.scheduledStartTime) {
+            const scheduledDate = new Date(session.scheduledStartTime);
+            const now = new Date();
+            const diffMs = scheduledDate - now;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMins / 60);
+            const diffDays = Math.floor(diffHours / 24);
+
+            if (diffDays > 0) {
+                scheduledInfo = `Starts in ${diffDays}d ${diffHours % 24}h`;
+            } else if (diffHours > 0) {
+                scheduledInfo = `Starts in ${diffHours}h ${diffMins % 60}m`;
+            } else if (diffMins > 0) {
+                scheduledInfo = `Starts in ${diffMins}m`;
+            } else {
+                scheduledInfo = 'Starting soon';
+            }
+        }
 
         // Check if current user is participant, creator, or has pending request
         const currentUserId = Auth.currentUser?.id;
         const isParticipant = session.participants && session.participants.includes(currentUserId);
         const isCreator = session.creatorId === currentUserId;
         const hasPendingRequest = session.joinRequests && session.joinRequests.includes(currentUserId);
-        const showJoinButton = !isParticipant && !isCreator && !hasPendingRequest;
+        // Don't show join button for scheduled sessions that haven't started
+        const showJoinButton = !isParticipant && !isCreator && !hasPendingRequest && !isScheduled;
 
         return `
             <div class="session-card" data-session-id="${session.id}">
@@ -306,6 +338,7 @@ const Sessions = {
                     </div>
                     <div class="session-badges">
                         ${isLive ? '<span class="live-badge">LIVE</span>' : ''}
+                        ${isScheduled ? '<span class="scheduled-badge">SCHEDULED</span>' : ''}
                         <span class="session-status ${session.status}">${session.status}</span>
                     </div>
                 </div>
@@ -317,7 +350,8 @@ const Sessions = {
                     </div>
                     <div class="session-detail">
                         <span class="session-detail-icon">⏱️</span>
-                        ${isLive && timeRemaining ? `<strong>${timeRemaining}</strong>` : `${session.duration} minutes`}
+                        ${isScheduled ? `<strong class="scheduled-countdown">${scheduledInfo}</strong>` :
+                          isLive && timeRemaining ? `<strong>${timeRemaining}</strong>` : `${session.duration} minutes`}
                     </div>
                     <div class="session-detail">
                         <span class="session-detail-icon">👥</span>
@@ -347,6 +381,8 @@ const Sessions = {
                             <button class="btn btn-primary btn-sm join-btn" data-session-id="${session.id}">
                                 Join
                             </button>
+                        ` : isScheduled ? `
+                            <span class="btn btn-locked btn-sm" style="cursor: default;">🔒 Locked</span>
                         ` : hasPendingRequest ? `
                             <span class="btn btn-warning btn-sm" style="cursor: default;">Requested</span>
                         ` : (isParticipant || isCreator) ? `
@@ -390,10 +426,16 @@ const Sessions = {
                 `${session.participantCount}/${session.maxParticipants}`;
             document.getElementById('viewSessionHost').textContent = session.creatorName;
 
-            // Show LIVE badge if session is live
+            // Show LIVE or SCHEDULED badge
             const liveEl = document.getElementById('viewSessionLive');
             if (session.isLive) {
                 liveEl.classList.remove('hidden');
+                liveEl.textContent = 'LIVE';
+                liveEl.className = 'live-badge';
+            } else if (session.isScheduled) {
+                liveEl.classList.remove('hidden');
+                liveEl.textContent = 'SCHEDULED';
+                liveEl.className = 'scheduled-badge';
             } else {
                 liveEl.classList.add('hidden');
             }
@@ -434,7 +476,29 @@ const Sessions = {
             const isParticipant = session.participants && session.participants.includes(currentUserId);
             const chatPanel = document.getElementById('chatPanel');
 
-            if (isParticipant || isCreator) {
+            // Check if session is scheduled
+            if (session.isScheduled) {
+                const scheduledDate = new Date(session.scheduledStartTime);
+                const formattedScheduledTime = scheduledDate.toLocaleString('en-GB', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                chatPanel.innerHTML = `
+                    <div class="chat-locked scheduled">
+                        <div class="lock-icon">🔒</div>
+                        <h4>Session Not Yet Started</h4>
+                        <p>This session is scheduled to start on:</p>
+                        <p class="scheduled-time">${formattedScheduledTime}</p>
+                        <p class="scheduled-note">Chat and participation will be available once the session starts.</p>
+                    </div>
+                `;
+                chatPanel.style.display = 'flex';
+            } else if (isParticipant || isCreator) {
                 chatPanel.style.display = 'flex';
                 // Initialize chat
                 Chat.init(sessionId);
@@ -498,7 +562,7 @@ const Sessions = {
         listContainer.querySelectorAll('.participant-chip:not(.is-you)').forEach(chip => {
             chip.addEventListener('click', () => {
                 const userId = chip.getAttribute('data-user-id');
-                App.showUserProfile(userId);
+                App.showUserProfile(userId, Chat.currentSessionId);
             });
         });
     }

@@ -52,24 +52,34 @@ public class SessionService {
             sessionData.put("year", request.getYear());
 
             // Handle startNow - use current date/time if starting immediately
-            boolean isLive = request.getStartNow() != null && request.getStartNow();
-            if (isLive) {
+            boolean startNow = request.getStartNow() != null && request.getStartNow();
+            long scheduledStartTime;
+
+            if (startNow) {
                 java.time.LocalDateTime now = java.time.LocalDateTime.now();
                 sessionData.put("date", now.toLocalDate().toString());
-                sessionData.put("time", now.toLocalTime().toString());
+                sessionData.put("time", now.toLocalTime().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")));
+                scheduledStartTime = System.currentTimeMillis();
             } else {
                 if (request.getDate() == null || request.getTime() == null) {
                     throw new RuntimeException("Date and time are required when not starting now");
                 }
                 sessionData.put("date", request.getDate());
                 sessionData.put("time", request.getTime());
+
+                // Parse date and time to create scheduledStartTime
+                java.time.LocalDate date = java.time.LocalDate.parse(request.getDate());
+                java.time.LocalTime time = java.time.LocalTime.parse(request.getTime());
+                java.time.LocalDateTime scheduledDateTime = java.time.LocalDateTime.of(date, time);
+                scheduledStartTime = scheduledDateTime.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
             }
 
             sessionData.put("duration", request.getDuration().longValue());
             sessionData.put("maxParticipants", request.getMaxParticipants().longValue());
             sessionData.put("preferences", request.getPreferences() != null ? request.getPreferences() : "");
             sessionData.put("description", request.getDescription());
-            sessionData.put("isLive", isLive);
+            sessionData.put("scheduledStartTime", scheduledStartTime);
+            sessionData.put("isLive", startNow);
             sessionData.put("creatorId", creatorUid);
             sessionData.put("creatorName", creatorName);
             sessionData.put("participants", Arrays.asList(creatorUid));
@@ -173,6 +183,12 @@ public class SessionService {
                 throw new RuntimeException("Session not found");
             }
 
+            // Check if session is still scheduled (locked)
+            Long scheduledStartTime = doc.getLong("scheduledStartTime");
+            if (scheduledStartTime != null && scheduledStartTime > System.currentTimeMillis()) {
+                throw new RuntimeException("This session hasn't started yet. Please wait until the scheduled time.");
+            }
+
             List<String> participants = (List<String>) doc.get("participants");
             List<String> requests = (List<String>) doc.get("requests");
             Long maxParticipants = doc.getLong("maxParticipants");
@@ -270,6 +286,51 @@ public class SessionService {
         }
     }
 
+    public void kickParticipant(String sessionId, String userIdToKick, String creatorUid) {
+        try {
+            DocumentReference docRef = firestore.collection("sessions").document(sessionId);
+            DocumentSnapshot doc = docRef.get().get();
+
+            if (!doc.exists()) {
+                throw new RuntimeException("Session not found");
+            }
+
+            // Only the creator can kick participants
+            if (!creatorUid.equals(doc.getString("creatorId"))) {
+                throw new RuntimeException("Only the session creator can kick participants");
+            }
+
+            // Can't kick yourself
+            if (creatorUid.equals(userIdToKick)) {
+                throw new RuntimeException("You cannot kick yourself from your own session");
+            }
+
+            List<String> participants = (List<String>) doc.get("participants");
+            if (participants == null || !participants.contains(userIdToKick)) {
+                throw new RuntimeException("User is not a participant in this session");
+            }
+
+            // Remove user from participants
+            docRef.update(
+                    "participants", FieldValue.arrayRemove(userIdToKick),
+                    "updatedAt", System.currentTimeMillis()
+            ).get();
+
+            // If session was full, update status back to open
+            doc = docRef.get().get();
+            participants = (List<String>) doc.get("participants");
+            Long maxParticipants = doc.getLong("maxParticipants");
+            String currentStatus = doc.getString("status");
+
+            if ("full".equals(currentStatus) && participants != null && maxParticipants != null
+                    && participants.size() < maxParticipants) {
+                docRef.update("status", "open").get();
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage());
+        }
+    }
+
     private SessionResponse mapToSessionResponse(String id, Map<String, Object> data) {
         SessionResponse response = new SessionResponse();
         response.setId(id);
@@ -300,7 +361,24 @@ public class SessionService {
         }
 
         response.setDescription((String) data.get("description"));
-        response.setIsLive(data.get("isLive") != null ? (Boolean) data.get("isLive") : false);
+
+        // Handle scheduled sessions
+        Long scheduledStartTime = (Long) data.get("scheduledStartTime");
+        long currentTime = System.currentTimeMillis();
+
+        if (scheduledStartTime != null) {
+            response.setScheduledStartTime(scheduledStartTime);
+            // Session is scheduled if the start time is still in the future
+            boolean isScheduled = scheduledStartTime > currentTime;
+            response.setIsScheduled(isScheduled);
+            // Session is live if it was started immediately OR if the scheduled time has passed
+            response.setIsLive(!isScheduled);
+        } else {
+            // Legacy sessions without scheduledStartTime
+            response.setIsLive(data.get("isLive") != null ? (Boolean) data.get("isLive") : false);
+            response.setIsScheduled(false);
+        }
+
         response.setStatus((String) data.get("status"));
         response.setCreatorId((String) data.get("creatorId"));
         response.setCreatorName((String) data.get("creatorName"));

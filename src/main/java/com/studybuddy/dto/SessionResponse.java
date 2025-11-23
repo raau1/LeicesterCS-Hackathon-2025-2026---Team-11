@@ -24,6 +24,8 @@ public class SessionResponse {
     private List<String> preferences;
     private String description;
     private Boolean isLive;
+    private Boolean isScheduled;
+    private Long scheduledStartTime;
     private String status;
     private String creatorId;
     private String creatorName;

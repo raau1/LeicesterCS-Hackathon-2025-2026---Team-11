@@ -27,7 +27,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/sessions").permitAll()
                 .requestMatchers("/api/sessions/{id}").permitAll()
                 // Static resources
-                .requestMatchers("/", "/index.html", "/css/**", "/js/**", "/assets/**").permitAll()
+                .requestMatchers("/", "/index.html", "/css/**", "/js/**", "/assets/**", "/images/**").permitAll()
                 // Protected endpoints
                 .anyRequest().authenticated()
             )

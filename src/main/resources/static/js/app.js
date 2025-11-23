@@ -273,7 +273,6 @@ const App = {
         if (createForm) {
             createForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const errorEl = document.getElementById('createError');
 
                 // Get form data
                 const formData = new FormData(createForm);
@@ -290,7 +289,7 @@ const App = {
                 // Validate date/time if not starting now
                 if (!startNow) {
                     if (!formData.get('date') || !formData.get('time')) {
-                        errorEl.textContent = 'Please select date and time or check "Start Now"';
+                        this.showToast('Please select date and time or check "Start Now"', 'error');
                         return;
                     }
                 }
@@ -309,14 +308,12 @@ const App = {
                 };
 
                 try {
-                    errorEl.textContent = '';
                     await Sessions.create(sessionData);
                     this.showToast('Session created successfully!', 'success');
                     createForm.reset();
                     this.navigateTo('browse');
                 } catch (error) {
-                    errorEl.textContent = error.message;
-                    this.showToast('Failed to create session', 'error');
+                    this.showToast(error.message || 'Failed to create session', 'error');
                 }
             });
         }
@@ -676,10 +673,12 @@ const App = {
 
     // User profile modal state
     currentProfileUserId: null,
+    currentSessionIdForKick: null,
+    isSessionOwner: false,
     selectedRating: 0,
 
     // Show user profile modal
-    async showUserProfile(userId) {
+    async showUserProfile(userId, sessionId = null) {
         if (!Auth.isLoggedIn()) {
             this.showToast('Please login to view profiles', 'error');
             return;
@@ -701,6 +700,26 @@ const App = {
             ]);
 
             this.currentProfileUserId = userId;
+            this.currentSessionIdForKick = sessionId;
+
+            // Check if current user is the session owner
+            const kickBtn = document.getElementById('kickUserBtn');
+            if (kickBtn && sessionId) {
+                try {
+                    const session = await Sessions.getById(sessionId);
+                    this.isSessionOwner = session.creatorId === Auth.currentUser?.id;
+                    // Show kick button only if user is session owner and target is a participant
+                    if (this.isSessionOwner && session.participants && session.participants.includes(userId)) {
+                        kickBtn.style.display = 'block';
+                    } else {
+                        kickBtn.style.display = 'none';
+                    }
+                } catch (err) {
+                    kickBtn.style.display = 'none';
+                }
+            } else if (kickBtn) {
+                kickBtn.style.display = 'none';
+            }
 
             // Update modal UI
             const initials = user.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) : 'U';
@@ -878,6 +897,25 @@ const App = {
             } catch (error) {
                 console.error('Error blocking/unblocking user:', error);
                 this.showToast(error.message || 'Failed to update block status', 'error');
+            }
+        });
+
+        // Kick user button
+        document.getElementById('kickUserBtn')?.addEventListener('click', async () => {
+            if (!this.currentProfileUserId || !this.currentSessionIdForKick) return;
+
+            try {
+                await Sessions.kick(this.currentSessionIdForKick, this.currentProfileUserId);
+                this.showToast('User kicked from session', 'success');
+                this.closeUserProfile();
+
+                // Refresh the session view to update participant list
+                if (typeof Sessions !== 'undefined' && Sessions.currentSession) {
+                    await Sessions.viewSession(this.currentSessionIdForKick);
+                }
+            } catch (error) {
+                console.error('Error kicking user:', error);
+                this.showToast(error.message || 'Failed to kick user', 'error');
             }
         });
     },

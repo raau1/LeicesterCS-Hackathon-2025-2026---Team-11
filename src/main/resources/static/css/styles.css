@@ -69,8 +69,12 @@ body {
     font-size: 16px;
     letter-spacing: -0.01em;
     background-image:
-        radial-gradient(ellipse at 20% 0%, rgba(200, 16, 46, 0.03) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 100%, rgba(200, 16, 46, 0.03) 0%, transparent 50%);
+        linear-gradient(rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.88)),
+        url('/images/coding-study-session-stockcake.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
 }
 
 /* Modern headings */
@@ -214,15 +218,18 @@ input, select, textarea {
 
 .btn-logout {
     padding: 0.5rem 1rem;
-    background-color: transparent;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
+    background-color: var(--bg-tertiary);
+    border: none;
+    border-radius: var(--radius-md);
     color: var(--text-secondary);
     font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
 }
 
 .btn-logout:hover {
-    background-color: var(--bg-primary);
+    background-color: var(--bg-red-subtle);
+    color: var(--primary-color);
 }
 
 /* ===== Main Content ===== */
@@ -538,11 +545,11 @@ input, select, textarea {
 .form-group {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.625rem;
 }
 
 .form-group label {
-    font-weight: 500;
+    font-weight: 600;
     font-size: 0.875rem;
     color: var(--text-primary);
 }
@@ -615,28 +622,38 @@ textarea:focus-visible {
 
 .form-section {
     background-color: var(--bg-secondary);
-    padding: 1.5rem;
+    padding: 1.75rem;
     border-radius: var(--radius-lg);
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
 .form-section h3 {
     font-size: 1.125rem;
-    margin-bottom: 1rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
     color: var(--text-primary);
+}
+
+.form-section .form-group {
+    margin-bottom: 1rem;
+}
+
+.form-section .form-group:last-child {
+    margin-bottom: 0;
 }
 
 .session-form {
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: 1.25rem;
 }
 
 .form-actions {
     display: flex;
     gap: 1rem;
     justify-content: flex-end;
-    margin-top: 1rem;
+    margin-top: 0.5rem;
 }
 
 .checkbox-group {
@@ -1537,34 +1554,6 @@ body::after {
     pointer-events: none;
 }
 
-/* Live badge pulse enhancement */
-.live-badge {
-    position: relative;
-}
-
-.live-badge::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 8px;
-    transform: translateY(-50%);
-    width: 6px;
-    height: 6px;
-    background: white;
-    border-radius: 50%;
-    animation: livePulse 1.5s ease-in-out infinite;
-}
-
-@keyframes livePulse {
-    0%, 100% {
-        opacity: 1;
-        transform: translateY(-50%) scale(1);
-    }
-    50% {
-        opacity: 0.5;
-        transform: translateY(-50%) scale(1.3);
-    }
-}
 
 /* Modal with glassmorphism */
 .modal-content {
@@ -1607,6 +1596,75 @@ body::after {
     50% {
         opacity: 0.7;
     }
+}
+
+/* Scheduled badge */
+.scheduled-badge {
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+    letter-spacing: 0.05em;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+/* Locked button for scheduled sessions */
+.btn-locked {
+    background: linear-gradient(135deg, var(--bg-tertiary) 0%, #e5e7eb 100%);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    font-weight: 500;
+}
+
+/* Scheduled countdown text */
+.scheduled-countdown {
+    color: #6366f1;
+}
+
+/* Chat locked scheduled state */
+.chat-locked.scheduled {
+    text-align: center;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.chat-locked.scheduled .lock-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.chat-locked.scheduled h4 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.125rem;
+}
+
+.chat-locked.scheduled p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.chat-locked.scheduled .scheduled-time {
+    font-weight: 600;
+    color: #6366f1;
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
+    background: rgba(99, 102, 241, 0.1);
+    border-radius: var(--radius-md);
+    margin: 0.5rem 0;
+}
+
+.chat-locked.scheduled .scheduled-note {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-style: italic;
 }
 
 .start-now-label {

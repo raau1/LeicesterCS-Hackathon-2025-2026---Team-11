@@ -175,7 +175,7 @@ const Chat = {
         container.querySelectorAll('.message-sender.clickable').forEach(el => {
             el.addEventListener('click', () => {
                 const userId = el.getAttribute('data-user-id');
-                App.showUserProfile(userId);
+                App.showUserProfile(userId, this.currentSessionId);
             });
         });
     },

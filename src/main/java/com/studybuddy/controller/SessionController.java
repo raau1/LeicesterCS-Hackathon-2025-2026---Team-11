@@ -87,4 +87,13 @@ public class SessionController {
         sessionService.deleteSession(id, authentication.getName());
         return ResponseEntity.ok(Map.of("message", "Session deleted"));
     }
+
+    @PostMapping("/{id}/kick/{userId}")
+    public ResponseEntity<Map<String, String>> kickParticipant(
+            @PathVariable String id,
+            @PathVariable String userId,
+            Authentication authentication) {
+        sessionService.kickParticipant(id, userId, authentication.getName());
+        return ResponseEntity.ok(Map.of("message", "User kicked from session"));
+    }
 }
