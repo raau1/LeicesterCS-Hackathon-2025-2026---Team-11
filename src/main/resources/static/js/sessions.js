@@ -120,7 +120,7 @@ const Sessions = {
         const sessionEnd = new Date(sessionStart.getTime() + session.duration * 60000);
         const now = new Date();
 
-        if (now > sessionEnd) return 'Expired';
+        // Always show countdown, never mark as expired
         if (now < sessionStart) return 'Not started';
 
         const msRemaining = sessionEnd - now;
@@ -128,10 +128,13 @@ const Sessions = {
         const hoursRemaining = Math.floor(minutesRemaining / 60);
         const minsRemaining = minutesRemaining % 60;
 
+        // Show countdown even if time has passed
         if (hoursRemaining > 0) {
             return `${hoursRemaining}h ${minsRemaining}m left`;
+        } else if (minutesRemaining > 0) {
+            return `${minutesRemaining}m left`;
         } else {
-            return `${minsRemaining}m left`;
+            return `In progress`;
         }
     },
 
@@ -256,17 +259,7 @@ const Sessions = {
 
         const updateTimer = () => {
             const timeRemaining = this.getTimeRemaining(session);
-            if (timeRemaining === 'Expired') {
-                element.textContent = 'Session ended';
-                clearInterval(this.timerInterval);
-                // Redirect back to browse after a short delay
-                setTimeout(() => {
-                    App.showToast('Session has ended', 'info');
-                    App.navigateTo('browse');
-                }, 2000);
-            } else {
-                element.textContent = timeRemaining;
-            }
+            element.textContent = timeRemaining;
         };
 
         // Update immediately and then every second

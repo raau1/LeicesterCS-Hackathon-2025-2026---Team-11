@@ -23,7 +23,8 @@ public class SessionCleanupService {
     private Firestore firestore;
 
     // Run every minute to check for expired sessions
-    @Scheduled(fixedRate = 60000)
+    // DISABLED - Manual cleanup only
+    // @Scheduled(fixedRate = 60000)
     public void cleanupExpiredSessions() {
         try {
             logger.info("Running session cleanup task...");
@@ -46,8 +47,8 @@ public class SessionCleanupService {
                         LocalDateTime sessionStart = LocalDateTime.of(sessionDate, sessionTime);
                         LocalDateTime sessionEnd = sessionStart.plusMinutes(duration);
 
-                        // If current time is past the session end time, delete it
-                        if (now.isAfter(sessionEnd)) {
+                        // Only delete sessions that ended more than 24 hours ago
+                        if (now.isAfter(sessionEnd.plusHours(24))) {
                             doc.getReference().delete().get();
                             deletedCount++;
                             logger.info("Deleted expired session: {} (ended at {})", doc.getId(), sessionEnd);
