@@ -148,13 +148,23 @@ const Sessions = {
         try {
             // Fetch user details and ratings for each request
             const userPromises = requestUserIds.map(async userId => {
-                const [user, rating] = await Promise.all([
-                    API.get(`/users/${userId}`),
-                    API.get(`/users/${userId}/rating`)
-                ]);
-                return { ...user, rating: rating.averageRating, ratingCount: rating.ratingCount };
+                try {
+                    const [user, rating] = await Promise.all([
+                        API.get(`/users/${userId}`),
+                        API.get(`/users/${userId}/rating`)
+                    ]);
+                    return { ...user, rating: rating.averageRating, ratingCount: rating.ratingCount };
+                } catch (error) {
+                    console.error(`Failed to fetch user ${userId}:`, error);
+                    return null;
+                }
             });
-            const users = await Promise.all(userPromises);
+            const users = (await Promise.all(userPromises)).filter(user => user !== null);
+
+            if (users.length === 0) {
+                container.innerHTML = '<p>No valid pending requests</p>';
+                return;
+            }
 
             container.innerHTML = users.map(user => `
                 <div class="request-item">
