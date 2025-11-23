@@ -5,6 +5,7 @@ node_modules/
 .env
 .env.local
 .env.*.local
+*.local.json
 
 # Firebase
 .firebase/
@@ -27,6 +28,7 @@ Thumbs.db
 # Build
 dist/
 build/
+run.bat
 
 # Logs
 *.log
