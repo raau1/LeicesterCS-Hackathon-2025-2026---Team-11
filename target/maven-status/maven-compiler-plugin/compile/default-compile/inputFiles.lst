@@ -3,9 +3,11 @@ C:\Users\Raul\Documents\Hackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src
 C:\Users\Raul\Documents\Hackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\dto\SessionRequest.java
 C:\Users\Raul\Documents\Hackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\controller\ChatController.java
 C:\Users\Raul\Documents\Hackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\service\SessionService.java
+C:\Users\Raul\Documents\Hackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\dto\RatingRequest.java
 C:\Users\Raul\Documents\Hackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\model\Rating.java
 C:\Users\Raul\Documents\Hackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\service\SessionCleanupService.java
 C:\Users\Raul\Documents\Hackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\model\User.java
+C:\Users\Raul\Documents\Hackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\service\RatingService.java
 C:\Users\Raul\Documents\Hackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\dto\MessageRequest.java
 C:\Users\Raul\Documents\Hackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\StudyBuddyApplication.java
 C:\Users\Raul\Documents\Hackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\config\GlobalExceptionHandler.java
@@ -28,4 +30,5 @@ C:\Users\Raul\Documents\Hackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src
 C:\Users\Raul\Documents\Hackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\dto\AuthRequest.java
 C:\Users\Raul\Documents\Hackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\exception\BadRequestException.java
 C:\Users\Raul\Documents\Hackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\model\Session.java
+C:\Users\Raul\Documents\Hackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\service\BlockService.java
 C:\Users\Raul\Documents\Hackathon2\LeicesterCS-Hackathon-2025-2026---Team-11\src\main\java\com\studybuddy\service\AuthService.java

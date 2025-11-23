@@ -17,6 +17,9 @@ const App = {
         // Set up other event listeners
         this.setupEventListeners();
 
+        // Set up modal listeners
+        this.setupModalListeners();
+
         // Load initial page
         this.navigateTo('home');
 
@@ -147,6 +150,72 @@ const App = {
                     scheduleFields.style.display = 'block';
                 }
                 break;
+            case 'userProfile':
+                this.loadUserProfileView();
+                break;
+        }
+    },
+
+    // Load user profile view page
+    async loadUserProfileView() {
+        if (!this.viewingUserId) {
+            this.navigateTo('browse');
+            return;
+        }
+
+        try {
+            // Fetch user data, rating, and block status
+            const [user, ratingData, blockStatus] = await Promise.all([
+                API.get(`/users/${this.viewingUserId}`),
+                API.get(`/users/${this.viewingUserId}/rating`),
+                API.get(`/users/${this.viewingUserId}/block-status`)
+            ]);
+
+            // Update UI
+            const initials = user.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) : 'U';
+            document.querySelector('#viewUserAvatar span').textContent = initials;
+            document.getElementById('viewUserName').textContent = user.name;
+            document.getElementById('viewUserYear').textContent = `Year ${user.year}`;
+
+            // Update rating display
+            const avgRating = ratingData.averageRating || 0;
+            const ratingCount = ratingData.ratingCount || 0;
+            const fullStars = Math.floor(avgRating);
+            document.getElementById('viewUserStars').textContent = '★'.repeat(fullStars) + '☆'.repeat(5 - fullStars);
+            document.getElementById('viewUserRatingText').textContent = avgRating > 0
+                ? `${avgRating.toFixed(1)} (${ratingCount} rating${ratingCount !== 1 ? 's' : ''})`
+                : 'No ratings yet';
+
+            // Update block button
+            const blockBtn = document.getElementById('viewUserBlockBtn');
+            if (blockBtn) {
+                if (blockStatus.hasBlocked) {
+                    blockBtn.textContent = 'Unblock User';
+                    blockBtn.classList.remove('btn-danger');
+                    blockBtn.classList.add('btn-secondary');
+                } else {
+                    blockBtn.textContent = 'Block User';
+                    blockBtn.classList.remove('btn-secondary');
+                    blockBtn.classList.add('btn-danger');
+                }
+                // Set up click handler
+                this.setupViewUserBlockButton();
+            }
+
+            // Load sessions
+            const sessionsContainer = document.getElementById('viewUserSessions');
+            if (this.viewingUserSessions && this.viewingUserSessions.length > 0) {
+                sessionsContainer.innerHTML = this.viewingUserSessions.map(session => Sessions.renderCard(session)).join('');
+            } else {
+                sessionsContainer.innerHTML = `
+                    <div class="empty-state">
+                        <p>No sessions created by this user</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error loading user profile view:', error);
+            this.showToast('Failed to load user profile', 'error');
         }
     },
 
@@ -429,7 +498,15 @@ const App = {
     // Show specific tab content
     showProfileTab(tabName) {
         const container = document.getElementById('profileSessions');
-        if (!container || !this.profileData) return;
+        if (!container) return;
+
+        if (tabName === 'blocked') {
+            // Special handling for blocked users tab
+            this.renderBlockedUsersTab(container);
+            return;
+        }
+
+        if (!this.profileData) return;
 
         let sessions = [];
         if (tabName === 'created') {
@@ -496,6 +573,312 @@ const App = {
                 const tabName = e.target.getAttribute('data-tab');
                 this.showProfileTab(tabName);
             });
+        });
+    },
+
+    // Render blocked users tab
+    async renderBlockedUsersTab(container) {
+        container.innerHTML = '<p class="loading-text">Loading blocked users...</p>';
+
+        try {
+            const blockedUsers = await API.get('/users/blocked/details');
+
+            if (blockedUsers.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>No blocked users</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = blockedUsers.map(user => {
+                const initials = user.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) : 'U';
+                return `
+                    <div class="blocked-user-item">
+                        <div class="blocked-user-info">
+                            <div class="creator-avatar">${initials}</div>
+                            <div>
+                                <div class="blocked-user-name">${user.name}</div>
+                                <div class="blocked-user-details">Year ${user.year} • ${user.email}</div>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary btn-sm unblock-user-btn" data-user-id="${user.id}">
+                            Unblock
+                        </button>
+                    </div>
+                `;
+            }).join('');
+
+            // Set up unblock handlers
+            container.querySelectorAll('.unblock-user-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const userId = e.target.getAttribute('data-user-id');
+                    await this.handleUnblockUser(userId);
+                });
+            });
+        } catch (error) {
+            console.error('Error loading blocked users:', error);
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p>Error loading blocked users</p>
+                </div>
+            `;
+        }
+    },
+
+    // Handle unblocking a user
+    async handleUnblockUser(userId) {
+        try {
+            await API.delete(`/users/${userId}/block`);
+            this.showToast('User unblocked', 'success');
+            // Refresh the blocked users tab
+            const container = document.getElementById('profileSessions');
+            await this.renderBlockedUsersTab(container);
+        } catch (error) {
+            console.error('Error unblocking user:', error);
+            this.showToast('Failed to unblock user', 'error');
+        }
+    },
+
+    // Set up block button on user profile view page
+    setupViewUserBlockButton() {
+        const blockBtn = document.getElementById('viewUserBlockBtn');
+        if (!blockBtn || !this.viewingUserId) return;
+
+        // Remove old listener by cloning
+        const newBtn = blockBtn.cloneNode(true);
+        blockBtn.parentNode.replaceChild(newBtn, blockBtn);
+
+        newBtn.addEventListener('click', async () => {
+            const isBlocked = newBtn.textContent === 'Unblock User';
+
+            try {
+                if (isBlocked) {
+                    await API.delete(`/users/${this.viewingUserId}/block`);
+                    this.showToast('User unblocked', 'success');
+                    newBtn.textContent = 'Block User';
+                    newBtn.classList.remove('btn-secondary');
+                    newBtn.classList.add('btn-danger');
+                } else {
+                    await API.post(`/users/${this.viewingUserId}/block`);
+                    this.showToast('User blocked', 'success');
+                    newBtn.textContent = 'Unblock User';
+                    newBtn.classList.remove('btn-danger');
+                    newBtn.classList.add('btn-secondary');
+                }
+            } catch (error) {
+                console.error('Error blocking/unblocking user:', error);
+                this.showToast(error.message || 'Failed to update block status', 'error');
+            }
+        });
+    },
+
+    // User profile modal state
+    currentProfileUserId: null,
+    selectedRating: 0,
+
+    // Show user profile modal
+    async showUserProfile(userId) {
+        if (!Auth.isLoggedIn()) {
+            this.showToast('Please login to view profiles', 'error');
+            return;
+        }
+
+        // Can't view your own profile in modal
+        if (userId === Auth.currentUser?.id) {
+            this.showToast('This is you!', 'info');
+            return;
+        }
+
+        try {
+            // Fetch user data, rating, and block status
+            const [user, ratingData, myRating, blockStatus] = await Promise.all([
+                API.get(`/users/${userId}`),
+                API.get(`/users/${userId}/rating`),
+                API.get(`/users/${userId}/my-rating`),
+                API.get(`/users/${userId}/block-status`)
+            ]);
+
+            this.currentProfileUserId = userId;
+
+            // Update modal UI
+            const initials = user.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) : 'U';
+            document.querySelector('#modalUserAvatar span').textContent = initials;
+            document.getElementById('modalUserName').textContent = user.name;
+            document.getElementById('modalUserEmail').textContent = user.email;
+            document.getElementById('modalUserYear').textContent = `Year ${user.year}`;
+
+            // Update rating display
+            const avgRating = ratingData.averageRating || 0;
+            const ratingCount = ratingData.ratingCount || 0;
+            const fullStars = Math.floor(avgRating);
+            document.getElementById('modalUserStars').textContent = '★'.repeat(fullStars) + '☆'.repeat(5 - fullStars);
+            document.getElementById('modalUserRating').textContent = avgRating > 0
+                ? `${avgRating.toFixed(1)} (${ratingCount} rating${ratingCount !== 1 ? 's' : ''})`
+                : 'No ratings yet';
+
+            // Set current user's rating if they've rated before
+            this.selectedRating = myRating.hasRated ? myRating.score : 0;
+            this.updateStarDisplay();
+
+            // Update block button state
+            const blockBtn = document.getElementById('blockUserBtn');
+            if (blockBtn) {
+                if (blockStatus.hasBlocked) {
+                    blockBtn.textContent = 'Unblock User';
+                    blockBtn.classList.remove('btn-danger');
+                    blockBtn.classList.add('btn-secondary');
+                } else {
+                    blockBtn.textContent = 'Block User';
+                    blockBtn.classList.remove('btn-secondary');
+                    blockBtn.classList.add('btn-danger');
+                }
+            }
+
+            // Show modal
+            document.getElementById('userProfileModal').classList.add('active');
+        } catch (error) {
+            console.error('Error loading user profile:', error);
+            this.showToast('Failed to load user profile', 'error');
+        }
+    },
+
+    // Close user profile modal
+    closeUserProfile() {
+        document.getElementById('userProfileModal').classList.remove('active');
+        this.currentProfileUserId = null;
+        this.selectedRating = 0;
+    },
+
+    // Update star display in modal
+    updateStarDisplay() {
+        const stars = document.querySelectorAll('#starRating .star');
+        stars.forEach((star, index) => {
+            if (index < this.selectedRating) {
+                star.textContent = '★';
+                star.classList.add('active');
+            } else {
+                star.textContent = '☆';
+                star.classList.remove('active');
+            }
+        });
+    },
+
+    // Set up modal event listeners
+    setupModalListeners() {
+        // Close modal button
+        document.getElementById('closeUserModal')?.addEventListener('click', () => {
+            this.closeUserProfile();
+        });
+
+        // Close on overlay click
+        document.getElementById('userProfileModal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'userProfileModal') {
+                this.closeUserProfile();
+            }
+        });
+
+        // Star rating hover and click
+        const stars = document.querySelectorAll('#starRating .star');
+        stars.forEach(star => {
+            star.addEventListener('mouseenter', () => {
+                const value = parseInt(star.getAttribute('data-value'));
+                stars.forEach((s, i) => {
+                    if (i < value) {
+                        s.textContent = '★';
+                        s.classList.add('hovered');
+                    } else {
+                        s.textContent = '☆';
+                        s.classList.remove('hovered');
+                    }
+                });
+            });
+
+            star.addEventListener('mouseleave', () => {
+                stars.forEach(s => s.classList.remove('hovered'));
+                this.updateStarDisplay();
+            });
+
+            star.addEventListener('click', () => {
+                this.selectedRating = parseInt(star.getAttribute('data-value'));
+                this.updateStarDisplay();
+            });
+        });
+
+        // Submit rating
+        document.getElementById('submitRating')?.addEventListener('click', async () => {
+            if (!this.currentProfileUserId) return;
+
+            if (this.selectedRating === 0) {
+                this.showToast('Please select a rating', 'error');
+                return;
+            }
+
+            try {
+                await API.post(`/users/${this.currentProfileUserId}/rate`, {
+                    score: this.selectedRating
+                });
+                this.showToast('Rating submitted!', 'success');
+                // Refresh the modal to show updated rating
+                await this.showUserProfile(this.currentProfileUserId);
+            } catch (error) {
+                console.error('Error submitting rating:', error);
+                this.showToast('Failed to submit rating', 'error');
+            }
+        });
+
+        // View full profile button
+        document.getElementById('viewFullProfile')?.addEventListener('click', async () => {
+            if (!this.currentProfileUserId) return;
+
+            try {
+                // Fetch user's sessions
+                const sessions = await API.get('/sessions');
+                const userSessions = sessions.filter(s => s.creatorId === this.currentProfileUserId);
+
+                // Store the user ID for the profile view
+                this.viewingUserId = this.currentProfileUserId;
+                this.viewingUserSessions = userSessions;
+
+                // Close modal and navigate to user profile view
+                this.closeUserProfile();
+                this.navigateTo('userProfile');
+            } catch (error) {
+                console.error('Error loading user sessions:', error);
+                this.showToast('Failed to load user profile', 'error');
+            }
+        });
+
+        // Block/Unblock user button
+        document.getElementById('blockUserBtn')?.addEventListener('click', async () => {
+            if (!this.currentProfileUserId) return;
+
+            const btn = document.getElementById('blockUserBtn');
+            const isBlocked = btn.textContent === 'Unblock User';
+
+            try {
+                if (isBlocked) {
+                    await API.delete(`/users/${this.currentProfileUserId}/block`);
+                    this.showToast('User unblocked', 'success');
+                    btn.textContent = 'Block User';
+                    btn.classList.remove('btn-secondary');
+                    btn.classList.add('btn-danger');
+                } else {
+                    await API.post(`/users/${this.currentProfileUserId}/block`);
+                    this.showToast('User blocked', 'success');
+                    btn.textContent = 'Unblock User';
+                    btn.classList.remove('btn-danger');
+                    btn.classList.add('btn-secondary');
+                }
+                // Refresh chat if viewing a session
+                if (typeof Chat !== 'undefined' && Chat.currentSessionId) {
+                    Chat.loadMessages();
+                }
+            } catch (error) {
+                console.error('Error blocking/unblocking user:', error);
+                this.showToast(error.message || 'Failed to update block status', 'error');
+            }
         });
     },
 

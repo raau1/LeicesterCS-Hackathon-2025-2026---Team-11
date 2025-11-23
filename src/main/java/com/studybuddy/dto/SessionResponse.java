@@ -34,4 +34,6 @@ public class SessionResponse {
     private LocalDateTime expiresAt;
     private Integer participantCount;
     private Integer spotsLeft;
+    private Double creatorRating;
+    private Integer creatorRatingCount;
 }

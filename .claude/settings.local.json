@@ -7,7 +7,9 @@
       "Bash(taskkill /F /PID 12880)",
       "Bash(taskkill //F //PID 12880)",
       "Bash(mvn spring-boot:run:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(mvn clean compile:*)",
+      "Bash(taskkill //F //PID 60608)"
     ],
     "deny": [],
     "ask": []

@@ -396,6 +396,7 @@
                             <button class="tab-btn active" data-tab="created">Created</button>
                             <button class="tab-btn" data-tab="joined">Joined</button>
                             <button class="tab-btn" data-tab="pending">Pending Requests</button>
+                            <button class="tab-btn" data-tab="blocked">Blocked Users</button>
                         </div>
                         <div class="tab-content" id="profileSessions">
                             <div class="empty-state">
@@ -460,6 +461,15 @@
                             <span class="chat-status" id="chatStatus">Connected</span>
                         </div>
 
+                        <div class="chat-participants" id="chatParticipants">
+                            <div class="participants-header">
+                                <span>Participants</span>
+                                <span class="participant-count" id="participantCount">0</span>
+                            </div>
+                            <div class="participants-list" id="participantsList">
+                            </div>
+                        </div>
+
                         <div class="chat-messages" id="chatMessages">
                             <div class="chat-empty">
                                 <p>No messages yet. Start the conversation!</p>
@@ -467,15 +477,103 @@
                         </div>
 
                         <form class="chat-input-form" id="chatForm">
-                            <input type="text" id="chatInput" placeholder="Type a message..." autocomplete="off">
+                            <input type="text" id="chatInput" placeholder="Type a message... (try /code)" autocomplete="off">
                             <button type="submit" class="btn btn-primary">Send</button>
                         </form>
+
+                        <div class="code-editor-container hidden" id="codeEditorContainer">
+                            <div class="code-editor-header">
+                                <span class="code-editor-title">Code Block</span>
+                                <button type="button" class="code-editor-close" id="closeCodeEditor">&times;</button>
+                            </div>
+                            <textarea id="codeEditorInput" class="code-editor-input" placeholder="Type or paste your code here...&#10;&#10;• Use Tab for indentation&#10;• Use Enter for new lines&#10;• Press Ctrl+Enter to send"></textarea>
+                            <div class="code-editor-footer">
+                                <input type="text" id="codeLanguage" class="code-language-input" placeholder="Language (optional, e.g., javascript, python)">
+                                <button type="button" class="btn btn-secondary btn-sm" id="cancelCodeEditor">Cancel</button>
+                                <button type="button" class="btn btn-primary btn-sm" id="sendCodeBlock">Send Code <span class="keyboard-hint">Ctrl+Enter</span></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- User Profile View Page -->
+        <section class="page" id="userProfilePage">
+            <div class="container">
+                <button class="btn btn-secondary btn-back" data-page="browse">← Back to Browse</button>
+
+                <div class="user-profile-view">
+                    <div class="profile-header">
+                        <div class="profile-avatar" id="viewUserAvatar">
+                            <span>U</span>
+                        </div>
+                        <div class="profile-info">
+                            <h2 id="viewUserName">User Name</h2>
+                            <p id="viewUserYear">Year 1</p>
+                            <div class="profile-rating">
+                                <span id="viewUserStars">☆☆☆☆☆</span>
+                                <span id="viewUserRatingText">No ratings yet</span>
+                            </div>
+                        </div>
+                        <div class="profile-actions">
+                            <button class="btn btn-danger" id="viewUserBlockBtn">Block User</button>
+                        </div>
+                    </div>
+
+                    <div class="profile-section">
+                        <h3>Sessions by this user</h3>
+                        <div class="sessions-grid" id="viewUserSessions">
+                            <div class="empty-state">
+                                <p>No sessions yet</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </section>
 
     </main>
+
+    <!-- User Profile Modal -->
+    <div class="modal-overlay" id="userProfileModal">
+        <div class="modal-content">
+            <button class="modal-close" id="closeUserModal">&times;</button>
+            <div class="user-profile-modal">
+                <div class="modal-user-header">
+                    <div class="modal-user-avatar" id="modalUserAvatar">
+                        <span>JD</span>
+                    </div>
+                    <div class="modal-user-info">
+                        <h3 id="modalUserName">John Doe</h3>
+                        <p id="modalUserEmail">john@example.com</p>
+                        <p id="modalUserYear">Year 2</p>
+                    </div>
+                </div>
+                <div class="modal-user-rating">
+                    <div class="rating-display">
+                        <span id="modalUserStars">☆☆☆☆☆</span>
+                        <span id="modalUserRating">No ratings yet</span>
+                    </div>
+                </div>
+                <div class="modal-rating-section" id="modalRatingSection">
+                    <h4>Rate this user</h4>
+                    <div class="star-rating" id="starRating">
+                        <span class="star" data-value="1">☆</span>
+                        <span class="star" data-value="2">☆</span>
+                        <span class="star" data-value="3">☆</span>
+                        <span class="star" data-value="4">☆</span>
+                        <span class="star" data-value="5">☆</span>
+                    </div>
+                    <button class="btn btn-primary" id="submitRating">Submit Rating</button>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" id="viewFullProfile">View Full Profile</button>
+                    <button class="btn btn-danger" id="blockUserBtn">Block User</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Toast Notifications -->
     <div class="toast-container" id="toastContainer"></div>

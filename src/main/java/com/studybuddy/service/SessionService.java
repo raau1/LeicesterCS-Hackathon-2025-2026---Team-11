@@ -19,6 +19,9 @@ public class SessionService {
     @Autowired
     private com.google.firebase.auth.FirebaseAuth firebaseAuth;
 
+    @Autowired
+    private RatingService ratingService;
+
     public SessionResponse createSession(SessionRequest request, String creatorUid) {
         try {
             // Get creator info from Firestore first, then fallback to Firebase Auth
@@ -308,6 +311,19 @@ public class SessionService {
         response.setSpotsLeft(response.getMaxParticipants() - participantCount);
         response.setParticipants(participants);
         response.setJoinRequests((List<String>) data.get("requests"));
+
+        // Fetch creator rating
+        String creatorId = (String) data.get("creatorId");
+        if (creatorId != null) {
+            try {
+                Map<String, Object> ratingStats = ratingService.getUserRatingStats(creatorId);
+                response.setCreatorRating((Double) ratingStats.get("averageRating"));
+                response.setCreatorRatingCount((Integer) ratingStats.get("ratingCount"));
+            } catch (Exception e) {
+                response.setCreatorRating(0.0);
+                response.setCreatorRatingCount(0);
+            }
+        }
 
         return response;
     }

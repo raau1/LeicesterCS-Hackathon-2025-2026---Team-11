@@ -134,8 +134,14 @@ const Sessions = {
         }
 
         try {
-            // Fetch user details for each request
-            const userPromises = requestUserIds.map(userId => API.get(`/users/${userId}`));
+            // Fetch user details and ratings for each request
+            const userPromises = requestUserIds.map(async userId => {
+                const [user, rating] = await Promise.all([
+                    API.get(`/users/${userId}`),
+                    API.get(`/users/${userId}/rating`)
+                ]);
+                return { ...user, rating: rating.averageRating, ratingCount: rating.ratingCount };
+            });
             const users = await Promise.all(userPromises);
 
             container.innerHTML = users.map(user => `
@@ -144,7 +150,7 @@ const Sessions = {
                         <div class="creator-avatar">${user.name.split(' ').map(n => n[0]).join('').toUpperCase()}</div>
                         <div>
                             <div class="request-user-name">${user.name}</div>
-                            <div class="request-user-details">Year ${user.year}</div>
+                            <div class="request-user-details">Year ${user.year} • ${user.rating > 0 ? `⭐ ${user.rating.toFixed(1)}` : 'No ratings'}</div>
                         </div>
                     </div>
                     <div class="request-actions">
@@ -330,7 +336,7 @@ const Sessions = {
                         <div class="creator-avatar">${initials}</div>
                         <div>
                             <div class="creator-name">${session.creatorName}</div>
-                            <div class="creator-rating">⭐ 4.5</div>
+                            <div class="creator-rating">${session.creatorRating > 0 ? `⭐ ${session.creatorRating.toFixed(1)}` : 'No ratings'}</div>
                         </div>
                     </div>
                     <div class="session-actions">
@@ -432,6 +438,9 @@ const Sessions = {
                 chatPanel.style.display = 'flex';
                 // Initialize chat
                 Chat.init(sessionId);
+
+                // Render participants list
+                await this.renderParticipantsList(session.participants, currentUserId);
             } else {
                 chatPanel.innerHTML = `
                     <div class="chat-locked">
@@ -450,6 +459,48 @@ const Sessions = {
             App.showToast('Failed to load session details', 'error');
             throw error;
         }
+    },
+
+    // Render participants list in chat panel
+    async renderParticipantsList(participantIds, currentUserId) {
+        const listContainer = document.getElementById('participantsList');
+        const countEl = document.getElementById('participantCount');
+
+        if (!listContainer || !participantIds) return;
+
+        countEl.textContent = participantIds.length;
+
+        // Fetch user info for all participants
+        const participantPromises = participantIds.map(async userId => {
+            try {
+                const user = await API.get(`/users/${userId}`);
+                return { ...user, id: userId };
+            } catch (error) {
+                return { id: userId, name: 'Unknown User' };
+            }
+        });
+
+        const participants = await Promise.all(participantPromises);
+
+        listContainer.innerHTML = participants.map(user => {
+            const isYou = user.id === currentUserId;
+            const initials = user.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) : 'U';
+
+            return `
+                <div class="participant-chip ${isYou ? 'is-you' : ''}" data-user-id="${user.id}">
+                    <div class="chip-avatar">${initials}</div>
+                    <span>${user.name}${isYou ? ' (You)' : ''}</span>
+                </div>
+            `;
+        }).join('');
+
+        // Add click handlers for non-you participants
+        listContainer.querySelectorAll('.participant-chip:not(.is-you)').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const userId = chip.getAttribute('data-user-id');
+                App.showUserProfile(userId);
+            });
+        });
     }
 };
 

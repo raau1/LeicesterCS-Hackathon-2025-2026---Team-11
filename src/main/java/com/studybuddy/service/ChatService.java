@@ -16,6 +16,9 @@ public class ChatService {
     @Autowired
     private Firestore firestore;
 
+    @Autowired
+    private BlockService blockService;
+
     public MessageResponse sendMessage(String sessionId, MessageRequest request, String senderUid) {
         try {
             // Verify user is a participant of the session
@@ -67,6 +70,9 @@ public class ChatService {
                 throw new RuntimeException("You must be a participant to view messages");
             }
 
+            // Get all blocked relations for the user
+            Set<String> blockedUsers = blockService.getAllBlockedRelations(userUid);
+
             // Get messages ordered by timestamp
             ApiFuture<QuerySnapshot> future = firestore.collection("sessions")
                     .document(sessionId)
@@ -77,6 +83,7 @@ public class ChatService {
             List<QueryDocumentSnapshot> documents = future.get().getDocuments();
 
             return documents.stream()
+                    .filter(doc -> !blockedUsers.contains(doc.getString("senderId")))
                     .map(doc -> mapToMessageResponse(doc.getId(), doc.getData()))
                     .collect(Collectors.toList());
         } catch (Exception e) {
@@ -97,6 +104,9 @@ public class ChatService {
                 throw new RuntimeException("You must be a participant to view messages");
             }
 
+            // Get all blocked relations for the user
+            Set<String> blockedUsers = blockService.getAllBlockedRelations(userUid);
+
             // Get messages after the given timestamp
             ApiFuture<QuerySnapshot> future = firestore.collection("sessions")
                     .document(sessionId)
@@ -108,6 +118,7 @@ public class ChatService {
             List<QueryDocumentSnapshot> documents = future.get().getDocuments();
 
             return documents.stream()
+                    .filter(doc -> !blockedUsers.contains(doc.getString("senderId")))
                     .map(doc -> mapToMessageResponse(doc.getId(), doc.getData()))
                     .collect(Collectors.toList());
         } catch (Exception e) {
